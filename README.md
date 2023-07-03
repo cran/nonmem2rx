@@ -37,55 +37,70 @@ When on CRAN, you can also get the CRAN version by:
 install.packages('nonmem2rx')
 ```
 
-## What you can do with `nonmem2rx`
+## What you can do with `nonmem2rx`/`babelmixr2`
 
-  - [Convert a `NONMEM` model to a `rxode2`
+![nonmem2rx-flowchart](https://github.com/nlmixr2/nonmem2rx/assets/514778/803feb11-f2d9-4a5e-af08-834d9541ac11)
+
+You can do many useful tasks directly converting between nlmixr2 and
+NONMEM models; you can:
+
+  - [Convert a NONMEM model to a rxode2
     model](https://nlmixr2.github.io/nonmem2rx/articles/import-nonmem.html)
 
-  - [Make sure the model is translated
+  - [Do development in nlmixr2 and then run NONMEM from a nlmixr2
+    model](https://nlmixr2.github.io/babelmixr2/articles/running-nonmem.html)
+    for reviewers who want to know about NONMEM results.
+
+  - In both conversions, [automatically make sure the model is
+    translated
     correctly](https://nlmixr2.github.io/nonmem2rx/articles/rxode2-validate.html)
+    (for
+    [babelmixr2](https://nlmixr2.github.io/babelmixr2/articles/running-nonmem.html#optional-step-2-recover-a-failed-nonmem-run))
 
-  - Then with this model, you can:
-    
-      - Perform [simulations of new
-        dosing](https://nlmixr2.github.io/nonmem2rx/articles/simulate-new-dosing.html)
-        from the NONMEM model or even [simulate using the uncertainty in
-        your
-        model](https://nlmixr2.github.io/nonmem2rx/articles/simulate-uncertainty.html)
-        to simulate new scenarios
-    
-      - [Modify the model to calculate derived
-        parameters](https://nlmixr2.github.io/nonmem2rx/articles/simulate-extra-items.html)
-        (like AUC). These parameters slow down NONMEM’s optimization,
-        but can help in your simulation scenario.
+Then with nlmixr2 fit models and nonmem2rx models coming from both
+conversions, you can:
 
-  - With `nonmem2rx` and `babelmixr2`, [convert the imported `rxode2`
-    model to a `nlmixr2`
-    object](https://nlmixr2.github.io/nonmem2rx/articles/convert-nlmixr2.html),
-    allowing:
-    
-      - [Generation of Word and PowerPoint plots with
-        `nlmixr2rpt`](https://nlmixr2.github.io/nonmem2rx/articles/create-office.html)
-    
-      - [Easy VPC creation (with
-        `vpcPlot()`)](https://nlmixr2.github.io/nonmem2rx/articles/create-vpc.html)
-    
-      - [Easy Individual plots with extra solved
-        points](https://nlmixr2.github.io/nonmem2rx/articles/create-augPred.html).
-        This will show the curvature of individual and population fits
-        for sparse data-sets (with `augPred()`)
+  - [Perform simulations of new
+    dosing](https://nlmixr2.github.io/nonmem2rx/articles/simulate-new-dosing.html)
+    from the NONMEM model or even [simulate using the uncertainty in
+    your model to simulate new
+    scenarios](https://nlmixr2.github.io/nonmem2rx/articles/simulate-uncertainty.html)
 
-  - You can even use this conversion to help debug your NONMEM model (or
-    even try it in `nlmixr2` instead)
-    
-      - Understand [how to simplify the NONMEM model to avoid rounding
-        errors](https://nlmixr2.github.io/nonmem2rx/articles/read-rounding.html)
-    
-      - [Run `nlmixr2`’s covariance step when `NONMEM`s covariance step
-        has
-        failed](https://nlmixr2.github.io/nonmem2rx/articles/read-rounding.html#step-5-get-the-covariance-of-the-model)
-        (in the linked example, there was no covariance step because
-        rounding errors)
+  - [Modify the model to calculate derived
+    parameters](https://nlmixr2.github.io/nonmem2rx/articles/simulate-extra-items.html)
+    (like AUC). These parameters slow down NONMEM’s optimization, but
+    can help in your simulation scenario.
+
+  - [Simulating with Covariates/Input PK
+    parameters](https://nlmixr2.github.io/nonmem2rx/articles/simulate-new-dosing-with-covs.html).
+    This example shows approaches to resample from the input dataset for
+    covariate selection.
+
+With nonmem2rx and babelmixr2, convert the imported rxode2 model to a
+nlmixr2 object, allowing:
+
+  - [Generation of Word and PowerPoint plots with
+    nlmixr2rpt](https://nlmixr2.github.io/nonmem2rx/articles/create-office.html)
+
+  - [Easy VPC
+    creation](https://nlmixr2.github.io/nonmem2rx/articles/create-vpc.html)
+    (with `vpcPlot()`)
+
+  - [Easy Individual plots with extra solved
+    points](https://nlmixr2.github.io/nonmem2rx/articles/create-augPred.html).
+    This will show the curvature of individual and population fits for
+    sparse data-sets (with `augPred()`)
+
+You can even use this conversion to help debug your NONMEM model (or
+even try it in nlmixr2 instead)
+
+  - [Understand how to simplify the NONMEM model to avoid rounding
+    errors](https://nlmixr2.github.io/nonmem2rx/articles/read-rounding.html)
+
+  - [Run nlmixr2’s covariance step when NONMEMs covariance step has
+    failed](https://nlmixr2.github.io/nonmem2rx/articles/read-rounding.html#step-5-get-the-covariance-of-the-model)
+    (in the linked example, there was no covariance step because
+    rounding errors)
 
 ## Simple example
 
@@ -94,8 +109,15 @@ nonmem control stream for the parser to start. For example:
 
 ``` r
 library(nonmem2rx)
-mod <- nonmem2rx(system.file("mods/cpt/runODE032.ctl", package="nonmem2rx"), lst=".res", save=FALSE)
-#> ℹ getting information from  '/tmp/Rtmpqt001c/temp_libpath50e2f43563895/nonmem2rx/mods/cpt/runODE032.ctl'
+
+# First we need the location of the nonmem control stream Since we are
+# running an example, we will use one of the built-in examples in
+# `nonmem2rx`
+ctlFile <- system.file("mods/cpt/runODE032.ctl", package="nonmem2rx")
+# You can use a control stream or other file. With the development
+# version of `babelmixr2`, you can simply point to the listing file
+mod <- nonmem2rx(ctlFile, lst=".res", save=FALSE)
+#> ℹ getting information from  '/tmp/RtmphCfr0E/temp_libpathaf275a605b00/nonmem2rx/mods/cpt/runODE032.ctl'
 #> ℹ reading in xml file
 #> ℹ done
 #> ℹ reading in phi file
@@ -131,13 +153,20 @@ mod <- nonmem2rx(system.file("mods/cpt/runODE032.ctl", package="nonmem2rx"), lst
 #> ℹ change initial estimate of `eta2` to `0.0993872449483344`
 #> ℹ change initial estimate of `eta3` to `0.101302674763154`
 #> ℹ change initial estimate of `eta4` to `0.0730497519364148`
-#> ℹ read in nonmem input data (for model validation): /tmp/Rtmpqt001c/temp_libpath50e2f43563895/nonmem2rx/mods/cpt/Bolus_2CPT.csv
+#> ℹ read in nonmem input data (for model validation): /tmp/RtmphCfr0E/temp_libpathaf275a605b00/nonmem2rx/mods/cpt/Bolus_2CPT.csv
 #> ℹ ignoring lines that begin with a letter (IGNORE=@)'
 #> ℹ applying names specified by $INPUT
 #> ℹ subsetting accept/ignore filters code: .data[-which((.data$SD == 0)),]
 #> ℹ done
 #> using C compiler: ‘gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0’
-#> ℹ read in nonmem IPRED data (for model validation): /tmp/Rtmpqt001c/temp_libpath50e2f43563895/nonmem2rx/mods/cpt/runODE032.csv
+#> In file included from /usr/share/R/include/R.h:71,
+#>                  from /home/matt/R/x86_64-pc-linux-gnu-library/4.3/rxode2/include/rxode2.h:9,
+#>                  from /home/matt/R/x86_64-pc-linux-gnu-library/4.3/rxode2parse/include/rxode2_model_shared.h:3,
+#>                  from rx_d16f021bc9a6b4f5e2be95cdc7bf3d57_.c:115:
+#> /usr/share/R/include/R_ext/Complex.h:80:6: warning: ISO C99 doesn’t support unnamed structs/unions [-Wpedantic]
+#>    80 |     };
+#>       |      ^
+#> ℹ read in nonmem IPRED data (for model validation): /tmp/RtmphCfr0E/temp_libpathaf275a605b00/nonmem2rx/mods/cpt/runODE032.csv
 #> ℹ done
 #> ℹ changing most variables to lower case
 #> ℹ done
@@ -148,10 +177,18 @@ mod <- nonmem2rx(system.file("mods/cpt/runODE032.ctl", package="nonmem2rx"), lst
 #> ℹ renaming compartments
 #> ℹ done
 #> using C compiler: ‘gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0’
+#> In file included from /usr/share/R/include/R.h:71,
+#>                  from /home/matt/R/x86_64-pc-linux-gnu-library/4.3/rxode2/include/rxode2.h:9,
+#>                  from /home/matt/R/x86_64-pc-linux-gnu-library/4.3/rxode2parse/include/rxode2_model_shared.h:3,
+#>                  from rx_edd6c2bb8fc0df18bd2c37d123e584da_.c:115:
+#> /usr/share/R/include/R_ext/Complex.h:80:6: warning: ISO C99 doesn’t support unnamed structs/unions [-Wpedantic]
+#>    80 |     };
+#>       |      ^
 #> ℹ solving ipred problem
 #> ℹ done
 #> ℹ solving pred problem
 #> ℹ done
+
 mod
 #>  ── rxode2-based free-form 2-cmt ODE model ────────────────────────────────────── 
 #>  ── Initalization: ──  

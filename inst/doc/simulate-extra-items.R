@@ -8,7 +8,13 @@ knitr::opts_chunk$set(
 library(nonmem2rx)
 library(rxode2)
 
-mod <- nonmem2rx(system.file("mods/cpt/runODE032.ctl", package="nonmem2rx"), lst=".res", save=FALSE)
+
+# First we need the location of the nonmem control stream Since we are running an example, we will use one of the built-in examples in `nonmem2rx`
+ctlFile <- system.file("mods/cpt/runODE032.ctl", package="nonmem2rx")
+# You can use a control stream or other file. With the development
+# version of `babelmixr2`, you can simply point to the listing file
+
+mod <- nonmem2rx(ctlFile, lst=".res", save=FALSE, determineError=FALSE)
 
 ## ----modAuc-------------------------------------------------------------------
 modAuc <- mod %>%

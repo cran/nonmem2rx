@@ -69,6 +69,9 @@
   .nonmem2rx$needExtCalc <- TRUE
   .nonmem2rx$mixp <- integer(0)
   .nonmem2rx$nspop <- 0L
+  .nonmem2rx$advan5 <- NULL
+  .nonmem2rx$advan5max <- 0L
+  .nonmem2rx$advan5k <- NULL
 }
 #' Add theta name to .nonmem2rx info
 #'
@@ -173,8 +176,12 @@
     if (length(.w) > 0) {
       .t <- .t[-.w]
     }
+    .i <- as.numeric(gsub("^theta", "", .t))
+    .t <- .t[order(.i)]
   } else {
     .t <- rxui$iniDf$name[which(is.na(rxui$iniDf$ntheta) & rxui$iniDf$neta1 == rxui$iniDf$neta2)]
+    .i <- as.numeric(gsub("^eta", "", .t))
+    .t <- .t[order(.i)]
   }
   .t <- .t[!(.t %in% c("icall", "irep"))]
   .w <- which(.n == "")
@@ -725,7 +732,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
                           "d/dt(depot)=0\nd/dt(central)=0\n"),
                    ifelse(.nonmem2rx$needExit, "ierprdu <- -1\n", ""),
                    paste(.nonmem2rx$model, collapse="\n"),
-
+                  .advan5odes(),
                    "\n})",
                    "}")
     .fun <- eval(parse(text=.txt))

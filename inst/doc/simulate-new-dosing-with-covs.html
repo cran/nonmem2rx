@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Simulate New dosing with covariates</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<script>// Hide empty <a> tag within highlighted CodeBlock for screen reader accessibility (see https://github.com/jgm/pandoc/issues/6352#issuecomment-626106786) -->
+// v0.0.1
+// Written by JooYoung Seo (jooyoung@psu.edu) and Atsushi Yasumoto on June 1st, 2020.
+
+document.addEventListener('DOMContentLoaded', function() {
+  const codeList = document.getElementsByClassName("sourceCode");
+  for (var i = 0; i < codeList.length; i++) {
+    var linkList = codeList[i].getElementsByTagName('a');
+    for (var j = 0; j < linkList.length; j++) {
+      if (linkList[j].innerHTML === "") {
+        linkList[j].setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Simulate New dosing with covariates</h1>
+
+
+
+<div id="simulation-with-covariates-or-input-parameters" class="section level2">
+<h2>Simulation with covariates or input parameters</h2>
+<p>Sometimes your NONMEM model can have covariates that you may wish to simulate from; this simulation exercise shows a few methods to simulate with the covariates from NONMEM.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="kw">library</span>(nonmem2rx)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a><span class="kw">library</span>(rxode2)</span></code></pre></div>
+</div>
+<div id="step-0-input-the-model" class="section level2">
+<h2>Step 0: input the model</h2>
+<p>In this case, we will use the Friberg myelosuppresion model originally contributed as an example by Yuan Xiong.</p>
+<p>With the simulated data in nlmixr2, babelmixr2, and some manual edits to simplify the model we run NONMEM 7.4.3.</p>
+<p>Note in this case there are some PK parameters that are in the model that require some special handling to simulate with uncertainty or even with different dosing scenarios.</p>
+<p>For any simulation scenario, we need to import the NONMEM model:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="co"># Since this is an included example, we import the model from the</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a><span class="co"># `nonmem2rx` package.  This is done by the `system.file()` command:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a>wbcModel &lt;-<span class="st"> </span><span class="kw">system.file</span>(<span class="st">&quot;wbc/wbc.lst&quot;</span>, <span class="dt">package=</span><span class="st">&quot;nonmem2rx&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a>wbc &lt;-<span class="st"> </span><span class="kw">nonmem2rx</span>(wbcModel)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true"></a><span class="co">#&gt; ℹ getting information from  &#39;/tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/wbc/wbc.lst&#39;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true"></a><span class="co">#&gt; ℹ reading in xml file</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true"></a><span class="co">#&gt; ℹ reading in phi file</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true"></a><span class="co">#&gt; ℹ reading in lst file</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true"></a><span class="co">#&gt; ℹ abbreviated list parsing</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true"></a><span class="co">#&gt; ℹ splitting control stream by records</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $INPUT</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $MODEL</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $THETA</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $OMEGA</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $SIGMA</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $PROBLEM</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $DATA</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $SUBROUTINES</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $PK</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $DES</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $ERROR</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $ESTIMATION</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true"></a><span class="co">#&gt; ℹ Ignore record $ESTIMATION</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $COVARIANCE</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true"></a><span class="co">#&gt; ℹ Ignore record $COVARIANCE</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true"></a><span class="co">#&gt; ℹ Processing record $TABLE</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `theta1` to `1.83169895537931`</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `theta2` to `8.37329670479077`</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `theta3` to `6.37739634773425`</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `theta4` to `-11.558011558`</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `theta5` to `0.464650000001741`</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta1` to `0.0979049999946534`</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta2` to `2.99999999999372e-06`</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta3` to `1.99999999999944e-05`</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem input data (for model validation): /tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/wbc/wbc.csv</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true"></a><span class="co">#&gt; ℹ ignoring lines that begin with a letter (IGNORE=@)&#39;</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true"></a><span class="co">#&gt; ℹ applying names specified by $INPUT</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true"></a><span class="co">#&gt; using C compiler: ‘gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0’</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/share/R/include/R.h:71[m[K,</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:8[m[K,</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/share/R/include/R_ext/Complex.h:80:6:[m[K [01;35m[Kwarning: [m[KISO C99 doesn’t support unnamed structs/unions [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true"></a><span class="co">#&gt;    80 |     }[01;35m[K;[m[K</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true"></a><span class="co">#&gt;       |      [01;35m[K^[m[K</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:78:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_F[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true"></a><span class="co">#&gt;    78 | typedef double (*[01;35m[Kt_F[m[K)(int _cSub,  int _cmt, double _amt, double t, double *y);</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~[m[K</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:271:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_F[m[K’ with type ‘[01m[Kt_F[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double,  double *)[m[K’}</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true"></a><span class="co">#&gt;   271 | typedef double (*[01;36m[Kt_F[m[K)(int _cSub,  int _cmt, double _amt, double t, double *y);</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~[m[K</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:79:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_LAG[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true"></a><span class="co">#&gt;    79 | typedef double (*[01;35m[Kt_LAG[m[K)(int _cSub,  int _cmt, double t);</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~[m[K</span></span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:272:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_LAG[m[K’ with type ‘[01m[Kt_LAG[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double)[m[K’}</span></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true"></a><span class="co">#&gt;   272 | typedef double (*[01;36m[Kt_LAG[m[K)(int _cSub,  int _cmt, double t);</span></span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~[m[K</span></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:80:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_RATE[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true"></a><span class="co">#&gt;    80 | typedef double (*[01;35m[Kt_RATE[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~~[m[K</span></span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:273:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_RATE[m[K’ with type ‘[01m[Kt_RATE[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double)[m[K’}</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true"></a><span class="co">#&gt;   273 | typedef double (*[01;36m[Kt_RATE[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~~[m[K</span></span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:81:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_DUR[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true"></a><span class="co">#&gt;    81 | typedef double (*[01;35m[Kt_DUR[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~[m[K</span></span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:274:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_DUR[m[K’ with type ‘[01m[Kt_DUR[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double)[m[K’}</span></span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true"></a><span class="co">#&gt;   274 | typedef double (*[01;36m[Kt_DUR[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~[m[K</span></span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:83:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_calc_mtime[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true"></a><span class="co">#&gt;    83 | typedef void (*[01;35m[Kt_calc_mtime[m[K)(int cSub, double *mtime);</span></span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~~~~~~~~~[m[K</span></span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:276:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_calc_mtime[m[K’ with type ‘[01m[Kt_calc_mtime[m[K’ {aka ‘[01m[Kvoid (*)(int,  double *)[m[K’}</span></span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true"></a><span class="co">#&gt;   276 | typedef void (*[01;36m[Kt_calc_mtime[m[K)(int cSub, double *mtime);</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~~~~~~~~~[m[K</span></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:85:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_ME[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true"></a><span class="co">#&gt;    85 | typedef void (*[01;35m[Kt_ME[m[K)(int _cSub, double _t, double t, double *_mat, const double *__zzStateVar__);</span></span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~[m[K</span></span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:278:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_ME[m[K’ with type ‘[01m[Kt_ME[m[K’ {aka ‘[01m[Kvoid (*)(int,  double,  double,  double *, const double *)[m[K’}</span></span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true"></a><span class="co">#&gt;   278 | typedef void (*[01;36m[Kt_ME[m[K)(int _cSub, double _t, double t, double *_mat, const double *__zzStateVar__);</span></span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~[m[K</span></span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:86:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_IndF[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true"></a><span class="co">#&gt;    86 | typedef void (*[01;35m[Kt_IndF[m[K)(int _cSub, double _t, double t, double *_mat);</span></span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~~~[m[K</span></span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_3c33174b64138723b5fef2095d0841e3_.c:115[m[K:</span></span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:279:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_IndF[m[K’ with type ‘[01m[Kt_IndF[m[K’ {aka ‘[01m[Kvoid (*)(int,  double,  double,  double *)[m[K’}</span></span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true"></a><span class="co">#&gt;   279 | typedef void (*[01;36m[Kt_IndF[m[K)(int _cSub, double _t, double t, double *_mat);</span></span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~~~[m[K</span></span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem IPRED data (for model validation): /tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/wbc/wbc.pred</span></span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem ETA data (for model validation): /tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/wbc/wbc.eta</span></span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true"></a><span class="co">#&gt; ℹ changing most variables to lower case</span></span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-143"><a href="#cb2-143" aria-hidden="true"></a><span class="co">#&gt; ℹ replace theta names</span></span>
+<span id="cb2-144"><a href="#cb2-144" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-145"><a href="#cb2-145" aria-hidden="true"></a><span class="co">#&gt; ℹ replace eta names</span></span>
+<span id="cb2-146"><a href="#cb2-146" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-147"><a href="#cb2-147" aria-hidden="true"></a><span class="co">#&gt; ℹ renaming compartments</span></span>
+<span id="cb2-148"><a href="#cb2-148" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-149"><a href="#cb2-149" aria-hidden="true"></a><span class="co">#&gt; using C compiler: ‘gcc (Ubuntu 11.3.0-1ubuntu1~22.04.1) 11.3.0’</span></span>
+<span id="cb2-150"><a href="#cb2-150" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/share/R/include/R.h:71[m[K,</span></span>
+<span id="cb2-151"><a href="#cb2-151" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:8[m[K,</span></span>
+<span id="cb2-152"><a href="#cb2-152" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-153"><a href="#cb2-153" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-154"><a href="#cb2-154" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/share/R/include/R_ext/Complex.h:80:6:[m[K [01;35m[Kwarning: [m[KISO C99 doesn’t support unnamed structs/unions [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-155"><a href="#cb2-155" aria-hidden="true"></a><span class="co">#&gt;    80 |     }[01;35m[K;[m[K</span></span>
+<span id="cb2-156"><a href="#cb2-156" aria-hidden="true"></a><span class="co">#&gt;       |      [01;35m[K^[m[K</span></span>
+<span id="cb2-157"><a href="#cb2-157" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-158"><a href="#cb2-158" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-159"><a href="#cb2-159" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:78:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_F[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-160"><a href="#cb2-160" aria-hidden="true"></a><span class="co">#&gt;    78 | typedef double (*[01;35m[Kt_F[m[K)(int _cSub,  int _cmt, double _amt, double t, double *y);</span></span>
+<span id="cb2-161"><a href="#cb2-161" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~[m[K</span></span>
+<span id="cb2-162"><a href="#cb2-162" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-163"><a href="#cb2-163" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-164"><a href="#cb2-164" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-165"><a href="#cb2-165" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-166"><a href="#cb2-166" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:271:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_F[m[K’ with type ‘[01m[Kt_F[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double,  double *)[m[K’}</span></span>
+<span id="cb2-167"><a href="#cb2-167" aria-hidden="true"></a><span class="co">#&gt;   271 | typedef double (*[01;36m[Kt_F[m[K)(int _cSub,  int _cmt, double _amt, double t, double *y);</span></span>
+<span id="cb2-168"><a href="#cb2-168" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~[m[K</span></span>
+<span id="cb2-169"><a href="#cb2-169" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-170"><a href="#cb2-170" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-171"><a href="#cb2-171" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:79:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_LAG[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-172"><a href="#cb2-172" aria-hidden="true"></a><span class="co">#&gt;    79 | typedef double (*[01;35m[Kt_LAG[m[K)(int _cSub,  int _cmt, double t);</span></span>
+<span id="cb2-173"><a href="#cb2-173" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~[m[K</span></span>
+<span id="cb2-174"><a href="#cb2-174" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-175"><a href="#cb2-175" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-176"><a href="#cb2-176" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-177"><a href="#cb2-177" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-178"><a href="#cb2-178" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:272:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_LAG[m[K’ with type ‘[01m[Kt_LAG[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double)[m[K’}</span></span>
+<span id="cb2-179"><a href="#cb2-179" aria-hidden="true"></a><span class="co">#&gt;   272 | typedef double (*[01;36m[Kt_LAG[m[K)(int _cSub,  int _cmt, double t);</span></span>
+<span id="cb2-180"><a href="#cb2-180" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~[m[K</span></span>
+<span id="cb2-181"><a href="#cb2-181" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-182"><a href="#cb2-182" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-183"><a href="#cb2-183" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:80:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_RATE[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-184"><a href="#cb2-184" aria-hidden="true"></a><span class="co">#&gt;    80 | typedef double (*[01;35m[Kt_RATE[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-185"><a href="#cb2-185" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~~[m[K</span></span>
+<span id="cb2-186"><a href="#cb2-186" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-187"><a href="#cb2-187" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-188"><a href="#cb2-188" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-189"><a href="#cb2-189" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-190"><a href="#cb2-190" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:273:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_RATE[m[K’ with type ‘[01m[Kt_RATE[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double)[m[K’}</span></span>
+<span id="cb2-191"><a href="#cb2-191" aria-hidden="true"></a><span class="co">#&gt;   273 | typedef double (*[01;36m[Kt_RATE[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-192"><a href="#cb2-192" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~~[m[K</span></span>
+<span id="cb2-193"><a href="#cb2-193" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-194"><a href="#cb2-194" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-195"><a href="#cb2-195" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:81:18:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_DUR[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-196"><a href="#cb2-196" aria-hidden="true"></a><span class="co">#&gt;    81 | typedef double (*[01;35m[Kt_DUR[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-197"><a href="#cb2-197" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;35m[K^~~~~[m[K</span></span>
+<span id="cb2-198"><a href="#cb2-198" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-199"><a href="#cb2-199" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-200"><a href="#cb2-200" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-201"><a href="#cb2-201" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-202"><a href="#cb2-202" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:274:18:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_DUR[m[K’ with type ‘[01m[Kt_DUR[m[K’ {aka ‘[01m[Kdouble (*)(int,  int,  double,  double)[m[K’}</span></span>
+<span id="cb2-203"><a href="#cb2-203" aria-hidden="true"></a><span class="co">#&gt;   274 | typedef double (*[01;36m[Kt_DUR[m[K)(int _cSub,  int _cmt, double _amt, double t);</span></span>
+<span id="cb2-204"><a href="#cb2-204" aria-hidden="true"></a><span class="co">#&gt;       |                  [01;36m[K^~~~~[m[K</span></span>
+<span id="cb2-205"><a href="#cb2-205" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-206"><a href="#cb2-206" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-207"><a href="#cb2-207" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:83:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_calc_mtime[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-208"><a href="#cb2-208" aria-hidden="true"></a><span class="co">#&gt;    83 | typedef void (*[01;35m[Kt_calc_mtime[m[K)(int cSub, double *mtime);</span></span>
+<span id="cb2-209"><a href="#cb2-209" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~~~~~~~~~[m[K</span></span>
+<span id="cb2-210"><a href="#cb2-210" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-211"><a href="#cb2-211" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-212"><a href="#cb2-212" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-213"><a href="#cb2-213" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-214"><a href="#cb2-214" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:276:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_calc_mtime[m[K’ with type ‘[01m[Kt_calc_mtime[m[K’ {aka ‘[01m[Kvoid (*)(int,  double *)[m[K’}</span></span>
+<span id="cb2-215"><a href="#cb2-215" aria-hidden="true"></a><span class="co">#&gt;   276 | typedef void (*[01;36m[Kt_calc_mtime[m[K)(int cSub, double *mtime);</span></span>
+<span id="cb2-216"><a href="#cb2-216" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~~~~~~~~~[m[K</span></span>
+<span id="cb2-217"><a href="#cb2-217" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-218"><a href="#cb2-218" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-219"><a href="#cb2-219" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:85:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_ME[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-220"><a href="#cb2-220" aria-hidden="true"></a><span class="co">#&gt;    85 | typedef void (*[01;35m[Kt_ME[m[K)(int _cSub, double _t, double t, double *_mat, const double *__zzStateVar__);</span></span>
+<span id="cb2-221"><a href="#cb2-221" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~[m[K</span></span>
+<span id="cb2-222"><a href="#cb2-222" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-223"><a href="#cb2-223" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-224"><a href="#cb2-224" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-225"><a href="#cb2-225" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-226"><a href="#cb2-226" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:278:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_ME[m[K’ with type ‘[01m[Kt_ME[m[K’ {aka ‘[01m[Kvoid (*)(int,  double,  double,  double *, const double *)[m[K’}</span></span>
+<span id="cb2-227"><a href="#cb2-227" aria-hidden="true"></a><span class="co">#&gt;   278 | typedef void (*[01;36m[Kt_ME[m[K)(int _cSub, double _t, double t, double *_mat, const double *__zzStateVar__);</span></span>
+<span id="cb2-228"><a href="#cb2-228" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~[m[K</span></span>
+<span id="cb2-229"><a href="#cb2-229" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-230"><a href="#cb2-230" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-231"><a href="#cb2-231" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:86:16:[m[K [01;35m[Kwarning: [m[Kredefinition of typedef ‘[01m[Kt_IndF[m[K’ [[01;35m[K-Wpedantic[m[K]</span></span>
+<span id="cb2-232"><a href="#cb2-232" aria-hidden="true"></a><span class="co">#&gt;    86 | typedef void (*[01;35m[Kt_IndF[m[K)(int _cSub, double _t, double t, double *_mat);</span></span>
+<span id="cb2-233"><a href="#cb2-233" aria-hidden="true"></a><span class="co">#&gt;       |                [01;35m[K^~~~~~[m[K</span></span>
+<span id="cb2-234"><a href="#cb2-234" aria-hidden="true"></a><span class="co">#&gt; In file included from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parse.h:52[m[K,</span></span>
+<span id="cb2-235"><a href="#cb2-235" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2/include/rxode2.h:13[m[K,</span></span>
+<span id="cb2-236"><a href="#cb2-236" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2_model_shared.h:3[m[K,</span></span>
+<span id="cb2-237"><a href="#cb2-237" aria-hidden="true"></a><span class="co">#&gt;                  from [01m[Krx_5ab15707311f925e6e5ed0db78c1f7b8_.c:115[m[K:</span></span>
+<span id="cb2-238"><a href="#cb2-238" aria-hidden="true"></a><span class="co">#&gt; [01m[K/usr/lib/R/site-library/rxode2parse/include/rxode2parseStruct.h:279:16:[m[K [01;36m[Knote: [m[Kprevious declaration of ‘[01m[Kt_IndF[m[K’ with type ‘[01m[Kt_IndF[m[K’ {aka ‘[01m[Kvoid (*)(int,  double,  double,  double *)[m[K’}</span></span>
+<span id="cb2-239"><a href="#cb2-239" aria-hidden="true"></a><span class="co">#&gt;   279 | typedef void (*[01;36m[Kt_IndF[m[K)(int _cSub, double _t, double t, double *_mat);</span></span>
+<span id="cb2-240"><a href="#cb2-240" aria-hidden="true"></a><span class="co">#&gt;       |                [01;36m[K^~~~~~[m[K</span></span>
+<span id="cb2-241"><a href="#cb2-241" aria-hidden="true"></a><span class="co">#&gt; ℹ solving ipred problem</span></span>
+<span id="cb2-242"><a href="#cb2-242" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-243"><a href="#cb2-243" aria-hidden="true"></a><span class="co">#&gt; ℹ solving pred problem</span></span>
+<span id="cb2-244"><a href="#cb2-244" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb2-245"><a href="#cb2-245" aria-hidden="true"></a></span>
+<span id="cb2-246"><a href="#cb2-246" aria-hidden="true"></a><span class="kw">print</span>(wbc)</span>
+<span id="cb2-247"><a href="#cb2-247" aria-hidden="true"></a><span class="co">#&gt;  ── rxode2-based free-form 7-cmt ODE model ────────────────────────────────────── </span></span>
+<span id="cb2-248"><a href="#cb2-248" aria-hidden="true"></a><span class="co">#&gt;  ── Initalization: ──  </span></span>
+<span id="cb2-249"><a href="#cb2-249" aria-hidden="true"></a><span class="co">#&gt; Fixed Effects ($theta): </span></span>
+<span id="cb2-250"><a href="#cb2-250" aria-hidden="true"></a><span class="co">#&gt;  log_CIRC0    log_MTT  log_SLOPU  log_GAMMA   prop.err </span></span>
+<span id="cb2-251"><a href="#cb2-251" aria-hidden="true"></a><span class="co">#&gt;   1.831699   8.373297   6.377396 -11.558012   0.464650 </span></span>
+<span id="cb2-252"><a href="#cb2-252" aria-hidden="true"></a><span class="co">#&gt; </span></span>
+<span id="cb2-253"><a href="#cb2-253" aria-hidden="true"></a><span class="co">#&gt; Omega ($omega): </span></span>
+<span id="cb2-254"><a href="#cb2-254" aria-hidden="true"></a><span class="co">#&gt;           eta.CIRC0 eta.MTT eta.SLOPU</span></span>
+<span id="cb2-255"><a href="#cb2-255" aria-hidden="true"></a><span class="co">#&gt; eta.CIRC0  0.097905   0e+00     0e+00</span></span>
+<span id="cb2-256"><a href="#cb2-256" aria-hidden="true"></a><span class="co">#&gt; eta.MTT    0.000000   3e-06     0e+00</span></span>
+<span id="cb2-257"><a href="#cb2-257" aria-hidden="true"></a><span class="co">#&gt; eta.SLOPU  0.000000   0e+00     2e-05</span></span>
+<span id="cb2-258"><a href="#cb2-258" aria-hidden="true"></a><span class="co">#&gt; </span></span>
+<span id="cb2-259"><a href="#cb2-259" aria-hidden="true"></a><span class="co">#&gt; States ($state or $stateDf): </span></span>
+<span id="cb2-260"><a href="#cb2-260" aria-hidden="true"></a><span class="co">#&gt;   Compartment Number Compartment Name</span></span>
+<span id="cb2-261"><a href="#cb2-261" aria-hidden="true"></a><span class="co">#&gt; 1                  1            CENTR</span></span>
+<span id="cb2-262"><a href="#cb2-262" aria-hidden="true"></a><span class="co">#&gt; 2                  2           PERIPH</span></span>
+<span id="cb2-263"><a href="#cb2-263" aria-hidden="true"></a><span class="co">#&gt; 3                  3             PROL</span></span>
+<span id="cb2-264"><a href="#cb2-264" aria-hidden="true"></a><span class="co">#&gt; 4                  4              TR1</span></span>
+<span id="cb2-265"><a href="#cb2-265" aria-hidden="true"></a><span class="co">#&gt; 5                  5              TR2</span></span>
+<span id="cb2-266"><a href="#cb2-266" aria-hidden="true"></a><span class="co">#&gt; 6                  6              TR3</span></span>
+<span id="cb2-267"><a href="#cb2-267" aria-hidden="true"></a><span class="co">#&gt; 7                  7           c.CIRC</span></span>
+<span id="cb2-268"><a href="#cb2-268" aria-hidden="true"></a><span class="co">#&gt;  ── Model (Normalized Syntax): ── </span></span>
+<span id="cb2-269"><a href="#cb2-269" aria-hidden="true"></a><span class="co">#&gt; function() {</span></span>
+<span id="cb2-270"><a href="#cb2-270" aria-hidden="true"></a><span class="co">#&gt;     description &lt;- &quot;wbc&quot;</span></span>
+<span id="cb2-271"><a href="#cb2-271" aria-hidden="true"></a><span class="co">#&gt;     validation &lt;- c(&quot;IPRED relative difference compared to Nonmem IPRED: 0%; 95% percentile: (0%,0%); rtol=7.82e-11&quot;, </span></span>
+<span id="cb2-272"><a href="#cb2-272" aria-hidden="true"></a><span class="co">#&gt;         &quot;IPRED absolute difference compared to Nonmem IPRED: 95% percentile: (4.96e-11, 1.28e-06); atol=5.24e-10&quot;, </span></span>
+<span id="cb2-273"><a href="#cb2-273" aria-hidden="true"></a><span class="co">#&gt;         &quot;PRED relative difference compared to Nonmem PRED: 0%; 95% percentile: (0%,0%); rtol=6.72e-11&quot;, </span></span>
+<span id="cb2-274"><a href="#cb2-274" aria-hidden="true"></a><span class="co">#&gt;         &quot;PRED absolute difference compared to Nonmem PRED: 95% percentile: (1.4e-11,4.89e-05) atol=6.72e-11&quot;)</span></span>
+<span id="cb2-275"><a href="#cb2-275" aria-hidden="true"></a><span class="co">#&gt;     ini({</span></span>
+<span id="cb2-276"><a href="#cb2-276" aria-hidden="true"></a><span class="co">#&gt;         log_CIRC0 &lt;- 1.83169895537931</span></span>
+<span id="cb2-277"><a href="#cb2-277" aria-hidden="true"></a><span class="co">#&gt;         label(&quot;1 - log_CIRC0&quot;)</span></span>
+<span id="cb2-278"><a href="#cb2-278" aria-hidden="true"></a><span class="co">#&gt;         log_MTT &lt;- 8.37329670479077</span></span>
+<span id="cb2-279"><a href="#cb2-279" aria-hidden="true"></a><span class="co">#&gt;         label(&quot;2 - log_MTT&quot;)</span></span>
+<span id="cb2-280"><a href="#cb2-280" aria-hidden="true"></a><span class="co">#&gt;         log_SLOPU &lt;- 6.37739634773425</span></span>
+<span id="cb2-281"><a href="#cb2-281" aria-hidden="true"></a><span class="co">#&gt;         label(&quot;3 - log_SLOPU&quot;)</span></span>
+<span id="cb2-282"><a href="#cb2-282" aria-hidden="true"></a><span class="co">#&gt;         log_GAMMA &lt;- -11.558011558</span></span>
+<span id="cb2-283"><a href="#cb2-283" aria-hidden="true"></a><span class="co">#&gt;         label(&quot;4 - log_GAMMA&quot;)</span></span>
+<span id="cb2-284"><a href="#cb2-284" aria-hidden="true"></a><span class="co">#&gt;         prop.err &lt;- c(0, 0.464650000001741)</span></span>
+<span id="cb2-285"><a href="#cb2-285" aria-hidden="true"></a><span class="co">#&gt;         label(&quot;5 - prop.err&quot;)</span></span>
+<span id="cb2-286"><a href="#cb2-286" aria-hidden="true"></a><span class="co">#&gt;         eta.CIRC0 ~ 0.0979049999946534</span></span>
+<span id="cb2-287"><a href="#cb2-287" aria-hidden="true"></a><span class="co">#&gt;         eta.MTT ~ 2.99999999999372e-06</span></span>
+<span id="cb2-288"><a href="#cb2-288" aria-hidden="true"></a><span class="co">#&gt;         eta.SLOPU ~ 1.99999999999944e-05</span></span>
+<span id="cb2-289"><a href="#cb2-289" aria-hidden="true"></a><span class="co">#&gt;     })</span></span>
+<span id="cb2-290"><a href="#cb2-290" aria-hidden="true"></a><span class="co">#&gt;     model({</span></span>
+<span id="cb2-291"><a href="#cb2-291" aria-hidden="true"></a><span class="co">#&gt;         cmt(CENTR)</span></span>
+<span id="cb2-292"><a href="#cb2-292" aria-hidden="true"></a><span class="co">#&gt;         cmt(PERIPH)</span></span>
+<span id="cb2-293"><a href="#cb2-293" aria-hidden="true"></a><span class="co">#&gt;         cmt(PROL)</span></span>
+<span id="cb2-294"><a href="#cb2-294" aria-hidden="true"></a><span class="co">#&gt;         cmt(TR1)</span></span>
+<span id="cb2-295"><a href="#cb2-295" aria-hidden="true"></a><span class="co">#&gt;         cmt(TR2)</span></span>
+<span id="cb2-296"><a href="#cb2-296" aria-hidden="true"></a><span class="co">#&gt;         cmt(TR3)</span></span>
+<span id="cb2-297"><a href="#cb2-297" aria-hidden="true"></a><span class="co">#&gt;         cmt(c.CIRC)</span></span>
+<span id="cb2-298"><a href="#cb2-298" aria-hidden="true"></a><span class="co">#&gt;         mu_1 &lt;- log_CIRC0</span></span>
+<span id="cb2-299"><a href="#cb2-299" aria-hidden="true"></a><span class="co">#&gt;         mu_2 &lt;- log_MTT</span></span>
+<span id="cb2-300"><a href="#cb2-300" aria-hidden="true"></a><span class="co">#&gt;         mu_3 &lt;- log_SLOPU</span></span>
+<span id="cb2-301"><a href="#cb2-301" aria-hidden="true"></a><span class="co">#&gt;         circ0 &lt;- exp(mu_1 + eta.CIRC0)</span></span>
+<span id="cb2-302"><a href="#cb2-302" aria-hidden="true"></a><span class="co">#&gt;         mtt &lt;- exp(mu_2 + eta.MTT)</span></span>
+<span id="cb2-303"><a href="#cb2-303" aria-hidden="true"></a><span class="co">#&gt;         slopu &lt;- exp(mu_3 + eta.SLOPU)</span></span>
+<span id="cb2-304"><a href="#cb2-304" aria-hidden="true"></a><span class="co">#&gt;         gamma &lt;- exp(log_GAMMA)</span></span>
+<span id="cb2-305"><a href="#cb2-305" aria-hidden="true"></a><span class="co">#&gt;         rxini.rxddta3. &lt;- circ0</span></span>
+<span id="cb2-306"><a href="#cb2-306" aria-hidden="true"></a><span class="co">#&gt;         PROL(0) &lt;- rxini.rxddta3.</span></span>
+<span id="cb2-307"><a href="#cb2-307" aria-hidden="true"></a><span class="co">#&gt;         rxini.rxddta4. &lt;- circ0</span></span>
+<span id="cb2-308"><a href="#cb2-308" aria-hidden="true"></a><span class="co">#&gt;         TR1(0) &lt;- rxini.rxddta4.</span></span>
+<span id="cb2-309"><a href="#cb2-309" aria-hidden="true"></a><span class="co">#&gt;         rxini.rxddta5. &lt;- circ0</span></span>
+<span id="cb2-310"><a href="#cb2-310" aria-hidden="true"></a><span class="co">#&gt;         TR2(0) &lt;- rxini.rxddta5.</span></span>
+<span id="cb2-311"><a href="#cb2-311" aria-hidden="true"></a><span class="co">#&gt;         rxini.rxddta6. &lt;- circ0</span></span>
+<span id="cb2-312"><a href="#cb2-312" aria-hidden="true"></a><span class="co">#&gt;         TR3(0) &lt;- rxini.rxddta6.</span></span>
+<span id="cb2-313"><a href="#cb2-313" aria-hidden="true"></a><span class="co">#&gt;         rxini.rxddta7. &lt;- circ0</span></span>
+<span id="cb2-314"><a href="#cb2-314" aria-hidden="true"></a><span class="co">#&gt;         c.CIRC(0) &lt;- rxini.rxddta7.</span></span>
+<span id="cb2-315"><a href="#cb2-315" aria-hidden="true"></a><span class="co">#&gt;         cl &lt;- CLI</span></span>
+<span id="cb2-316"><a href="#cb2-316" aria-hidden="true"></a><span class="co">#&gt;         v1 &lt;- V1I</span></span>
+<span id="cb2-317"><a href="#cb2-317" aria-hidden="true"></a><span class="co">#&gt;         v2 &lt;- V2I</span></span>
+<span id="cb2-318"><a href="#cb2-318" aria-hidden="true"></a><span class="co">#&gt;         RXR1 &lt;- 204</span></span>
+<span id="cb2-319"><a href="#cb2-319" aria-hidden="true"></a><span class="co">#&gt;         conc &lt;- CENTR/v1</span></span>
+<span id="cb2-320"><a href="#cb2-320" aria-hidden="true"></a><span class="co">#&gt;         NN &lt;- 3</span></span>
+<span id="cb2-321"><a href="#cb2-321" aria-hidden="true"></a><span class="co">#&gt;         ktr &lt;- (NN + 1)/mtt</span></span>
+<span id="cb2-322"><a href="#cb2-322" aria-hidden="true"></a><span class="co">#&gt;         edrug &lt;- 1 - slopu * conc</span></span>
+<span id="cb2-323"><a href="#cb2-323" aria-hidden="true"></a><span class="co">#&gt;         fdbk &lt;- (circ0/c.CIRC)^gamma</span></span>
+<span id="cb2-324"><a href="#cb2-324" aria-hidden="true"></a><span class="co">#&gt;         circ &lt;- c.CIRC</span></span>
+<span id="cb2-325"><a href="#cb2-325" aria-hidden="true"></a><span class="co">#&gt;         d/dt(CENTR) &lt;- PERIPH * RXR1/v2 - CENTR * (cl/v1 + RXR1/v1)</span></span>
+<span id="cb2-326"><a href="#cb2-326" aria-hidden="true"></a><span class="co">#&gt;         d/dt(PERIPH) &lt;- CENTR * RXR1/v1 - PERIPH * RXR1/v2</span></span>
+<span id="cb2-327"><a href="#cb2-327" aria-hidden="true"></a><span class="co">#&gt;         d/dt(PROL) &lt;- ktr * PROL * edrug * fdbk - ktr * PROL</span></span>
+<span id="cb2-328"><a href="#cb2-328" aria-hidden="true"></a><span class="co">#&gt;         d/dt(TR1) &lt;- ktr * PROL - ktr * TR1</span></span>
+<span id="cb2-329"><a href="#cb2-329" aria-hidden="true"></a><span class="co">#&gt;         d/dt(TR2) &lt;- ktr * TR1 - ktr * TR2</span></span>
+<span id="cb2-330"><a href="#cb2-330" aria-hidden="true"></a><span class="co">#&gt;         d/dt(TR3) &lt;- ktr * TR2 - ktr * TR3</span></span>
+<span id="cb2-331"><a href="#cb2-331" aria-hidden="true"></a><span class="co">#&gt;         d/dt(c.CIRC) &lt;- ktr * TR3 - ktr * c.CIRC</span></span>
+<span id="cb2-332"><a href="#cb2-332" aria-hidden="true"></a><span class="co">#&gt;         f &lt;- CENTR</span></span>
+<span id="cb2-333"><a href="#cb2-333" aria-hidden="true"></a><span class="co">#&gt;         ipred &lt;- c.CIRC</span></span>
+<span id="cb2-334"><a href="#cb2-334" aria-hidden="true"></a><span class="co">#&gt;         w &lt;- sqrt((ipred * prop.err)^2)</span></span>
+<span id="cb2-335"><a href="#cb2-335" aria-hidden="true"></a><span class="co">#&gt;         if (w == 0) </span></span>
+<span id="cb2-336"><a href="#cb2-336" aria-hidden="true"></a><span class="co">#&gt;             w &lt;- 1</span></span>
+<span id="cb2-337"><a href="#cb2-337" aria-hidden="true"></a><span class="co">#&gt;         y &lt;- ipred + w * eps1</span></span>
+<span id="cb2-338"><a href="#cb2-338" aria-hidden="true"></a><span class="co">#&gt;     })</span></span>
+<span id="cb2-339"><a href="#cb2-339" aria-hidden="true"></a><span class="co">#&gt; }</span></span>
+<span id="cb2-340"><a href="#cb2-340" aria-hidden="true"></a><span class="co">#&gt;  ── nonmem2rx translation notes ($notes): ──  </span></span>
+<span id="cb2-341"><a href="#cb2-341" aria-hidden="true"></a><span class="co">#&gt;    • some NONMEM input has tied times; they are offset by a small offset </span></span>
+<span id="cb2-342"><a href="#cb2-342" aria-hidden="true"></a><span class="co">#&gt;    • $MODEL NCOMPARTMENTS/NEQUILIBRIUM/NPARAMETERS statement(s) ignored </span></span>
+<span id="cb2-343"><a href="#cb2-343" aria-hidden="true"></a><span class="co">#&gt;  ── nonmem2rx extra properties: ──  </span></span>
+<span id="cb2-344"><a href="#cb2-344" aria-hidden="true"></a><span class="co">#&gt; </span></span>
+<span id="cb2-345"><a href="#cb2-345" aria-hidden="true"></a><span class="co">#&gt; Sigma ($sigma): </span></span>
+<span id="cb2-346"><a href="#cb2-346" aria-hidden="true"></a><span class="co">#&gt;      eps1</span></span>
+<span id="cb2-347"><a href="#cb2-347" aria-hidden="true"></a><span class="co">#&gt; eps1    1</span></span>
+<span id="cb2-348"><a href="#cb2-348" aria-hidden="true"></a><span class="co">#&gt; </span></span>
+<span id="cb2-349"><a href="#cb2-349" aria-hidden="true"></a><span class="co">#&gt; other properties include: $nonmemData, $etaData, $thetaMat, $dfSub, $dfObs</span></span>
+<span id="cb2-350"><a href="#cb2-350" aria-hidden="true"></a><span class="co">#&gt; captured NONMEM table outputs: $predData, $ipredData</span></span>
+<span id="cb2-351"><a href="#cb2-351" aria-hidden="true"></a><span class="co">#&gt; NONMEM/rxode2 comparison data: $iwresCompare, $predCompare, $ipredCompare</span></span>
+<span id="cb2-352"><a href="#cb2-352" aria-hidden="true"></a><span class="co">#&gt; NONMEM/rxode2 composite comparison: $predAtol, $predRtol, $ipredAtol, $ipredRtol, $iwresAtol, $iwresRtol</span></span>
+<span id="cb2-353"><a href="#cb2-353" aria-hidden="true"></a></span>
+<span id="cb2-354"><a href="#cb2-354" aria-hidden="true"></a><span class="co"># note the NONMEM vs rxode2 models validate well. You can see this in</span></span>
+<span id="cb2-355"><a href="#cb2-355" aria-hidden="true"></a><span class="co"># the validation code:</span></span>
+<span id="cb2-356"><a href="#cb2-356" aria-hidden="true"></a><span class="kw">message</span>(<span class="kw">paste</span>(wbc<span class="op">$</span>meta<span class="op">$</span>validation, <span class="dt">collapse=</span><span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>))</span>
+<span id="cb2-357"><a href="#cb2-357" aria-hidden="true"></a><span class="co">#&gt; IPRED relative difference compared to Nonmem IPRED: 0%; 95% percentile: (0%,0%); rtol=7.82e-11</span></span>
+<span id="cb2-358"><a href="#cb2-358" aria-hidden="true"></a><span class="co">#&gt; IPRED absolute difference compared to Nonmem IPRED: 95% percentile: (4.96e-11, 1.28e-06); atol=5.24e-10</span></span>
+<span id="cb2-359"><a href="#cb2-359" aria-hidden="true"></a><span class="co">#&gt; PRED relative difference compared to Nonmem PRED: 0%; 95% percentile: (0%,0%); rtol=6.72e-11</span></span>
+<span id="cb2-360"><a href="#cb2-360" aria-hidden="true"></a><span class="co">#&gt; PRED absolute difference compared to Nonmem PRED: 95% percentile: (1.4e-11,4.89e-05) atol=6.72e-11</span></span></code></pre></div>
+</div>
+<div id="option-1-simulate-with-the-same-conditions-as-the-input-model" class="section level2">
+<h2>Option #1: simulate with the same conditions as the input model</h2>
+<p>The easiest way to simulate with uncertainty is to use the original NONMEM input dataset. If we want to simulate covariates from here, we simply add <code>resample=TRUE</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>sim &lt;-<span class="st"> </span><span class="kw">rxSolve</span>(wbc, <span class="dt">resample=</span><span class="ot">TRUE</span>, <span class="dt">nStud=</span><span class="dv">500</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a><span class="co">#&gt; ℹ using nocb interpolation like NONMEM, specify directly to change</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a><span class="co">#&gt; ℹ using safeZero=FALSE since NONMEM does not use protection by default</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfSub=45 from NONMEM</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfObs=176 from NONMEM</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true"></a><span class="co">#&gt; ℹ using thetaMat from NONMEM</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true"></a><span class="co">#&gt; ℹ using sigma from NONMEM</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM&#39;s data for solving</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified atol=1e-12</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified rtol=1e-06</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssRtol=1e-06</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssAtol=1e-12</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true"></a><span class="co">#&gt; ℹ thetaMat has too many items, ignored: &#39;omega.2.1&#39;, &#39;omega.3.1&#39;, &#39;omega.3.2&#39;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true"></a><span class="co">#&gt; [====|====|====|====|====|====|====|====|====|====] 0:00:07</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true"></a><span class="co">#&gt; Warning: corrected &#39;thetaMat&#39; to be a symmetric, positive definite matrix</span></span></code></pre></div>
+<p>In this case every individual re-samples from the original dataset’s covariates. In this particular case, the dosing changes per individual and it may not be what you wish to share with the team but may be a way to see how the model is performing relative to the data. Binning may be necessary, as with a typical <code>VPC</code></p>
+</div>
+<div id="option-2-simulate-with-a-different-condition-with-resampled-pk-parameterscovariates" class="section level2">
+<h2>Option 2: simulate with a different condition (with resampled PK parameters/covariates)</h2>
+<p>In this case, you may wish to simulate a study that has similar covariates as the NONMEM model in general (and also with resampling)</p>
+<p>First lets simulate <code>410</code> every 20 days. We can easily add this by creating a event table with the same input PK parameters as the NONMEM dataset.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="co"># first create the base event table with the nubmer of individuals</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a><span class="co"># matching the NONMEM dataset:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a>ev &lt;-<span class="st"> </span><span class="kw">et</span>(<span class="dt">amt=</span><span class="dv">410</span>, <span class="dt">ii=</span><span class="dv">20</span><span class="op">*</span><span class="dv">24</span>, <span class="dt">until=</span><span class="dv">365</span><span class="op">*</span><span class="dv">24</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Add dosing 20 days apart for a year</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a><span class="st">  </span><span class="kw">et</span>(<span class="kw">seq</span>(<span class="dv">0</span>, <span class="dv">365</span><span class="op">*</span><span class="dv">24</span>, <span class="dt">by=</span><span class="dv">7</span><span class="op">*</span><span class="dv">24</span>)) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Assume weekly observations</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a><span class="st">  </span><span class="kw">et</span>(<span class="dt">id=</span><span class="kw">seq_along</span>(<span class="kw">unique</span>(wbc<span class="op">$</span>nonmemData<span class="op">$</span>ID))) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Match the number of subjects modeled</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a><span class="st">  </span>as.data.frame <span class="co"># convert to data.frame</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a><span class="co"># Now create the PK covariates</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="kw">library</span>(dplyr)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true"></a>pkCov &lt;-<span class="st"> </span>wbc<span class="op">$</span>nonmemData <span class="op">%&gt;%</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true"></a><span class="st">  </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">duplicated</span>(ID)) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># only get one observation per id</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true"></a><span class="st">  </span><span class="kw">select</span>(CLI, V1I, V2I) <span class="co"># select the covariates</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true"></a>pkCov<span class="op">$</span>id &lt;-<span class="st"> </span><span class="kw">seq_along</span>(pkCov<span class="op">$</span>CLI) <span class="co"># add the covariates per id</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true"></a><span class="co"># Then merge the PK covariates to the original event table</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true"></a>ev &lt;-<span class="st"> </span><span class="kw">merge</span>(pkCov, ev)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true"></a><span class="co"># Last simulate with replacement with the new data frame</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true"></a>sim &lt;-<span class="st"> </span><span class="kw">rxSolve</span>(wbc, ev, <span class="dt">resample=</span><span class="ot">TRUE</span>, <span class="dt">nStud=</span><span class="dv">100</span>)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true"></a><span class="co">#&gt; ℹ using nocb interpolation like NONMEM, specify directly to change</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true"></a><span class="co">#&gt; ℹ using safeZero=FALSE since NONMEM does not use protection by default</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfSub=45 from NONMEM</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfObs=176 from NONMEM</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true"></a><span class="co">#&gt; ℹ using thetaMat from NONMEM</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true"></a><span class="co">#&gt; ℹ using sigma from NONMEM</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified atol=1e-12</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified rtol=1e-06</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssRtol=1e-06</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssAtol=1e-12</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true"></a><span class="co">#&gt; ℹ thetaMat has too many items, ignored: &#39;omega.2.1&#39;, &#39;omega.3.1&#39;, &#39;omega.3.2&#39;</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true"></a><span class="co">#&gt; Warning: corrected &#39;thetaMat&#39; to be a symmetric, positive definite matrix</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true"></a>ci &lt;-<span class="st"> </span><span class="kw">confint</span>(sim, <span class="st">&quot;y&quot;</span>)</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true"></a><span class="co">#&gt; summarizing data...</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true"></a><span class="co">#&gt; done</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true"></a></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true"></a><span class="kw">plot</span>(ci)</span></code></pre></div>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAEgCAIAAACb4TnXAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAgAElEQVR4nO2deZQc1X3vb1V1VXdX7+vsI82mXUhohATCDrYTi+VhgjkWXuCdYzs+DiEODjGGF9uAnJg4jp9tksMJzrMJJpjYxnAsHEjggA0h2iXQOhptM6OZafV09/S+VHXX+v64o1LT21T3VPd0z9zP0dGpqa761e3q+ta993d/93cxWZYBAoGoD/hiFwCBWMoggSEQdQQJDIGoI7p6GD179szbb7+ZSiU7OrruuOMum80OAJiauvTaa3sYhtmw4ZqdO2/DMKRtxNJH+6c8Ho/t2fPiHXfc9Zd/+Yjdbn/ttT0AAEkSX375l7fc8okHHnjo8mXf6dMnNb8uAtGEaC+w6enJvr6Brq4eiqJuuOHDPt80AGB8fMxms/f1DZAktX37jhMnjml+XQSiCdG+ibhmzbqhodVwe2bmckdHFwAgkYi53R640+PxJhJx5XiO406dOg63bTYrTdPlLCcSMY7Lejwd2haY53M8n6Vpm7ZmWZaJxcLt7d04ruVbTJKEbDZtMFhwnNDQrCgKwaDf6fQYDEYNzQIAGCZOUUadTq+t2WDQbzTSVqtdW7PZbBrDcL2+7ENYDoPB6HR6ivdrLzCSpEgSAABOnz7x5pv/dffd9wAAGIbR6+duMUXpWZZRjmdZ5tVXfwO3N27c5HRaKtuPxcKal7l+XLyYWOwiVEE63UqlTSQigcD0YpdiDre7rUECAwCwLPPKKy8lEol77/2C19sOADAajfF4DH7Kcbn816TNZn/88e+qMXvhwkgsFt627SZtS5tOR9PpSHv7kLZmQyH/mTPHbrzx4yRJaWiW49hIZMrtXkmSWtYJuRx74MDvN2zY6na3aWgWADAzc85q9ZpMDm3NHjz4e6+3s79/jbZmI5EpgtDZ7Z1aGdS+DyaKwvPPP+N0ur/85a9AdQEA7HZnJDJX80QiEbtd49uNQDQn2gtsdHSEovQ7d96GYZiys79/IBqNBAJ+WZbee+/Qxo2bNL8uAtGEaN9E9PsvT05OfPvbfw3/pGnT17/+LRwndu363J49L/E8v3r1mk2brtX8ughEE6K9wHbuvG3nztuK9/f0rLjvvgc0vxwC0cygcAoEoo4ggSEQdQQJDIGoI0hgCEQdWUYCm5iYWOwiIJYdy0hgCETjQQJDIOoIEhgCUUeWi8BQBwyxKCwRganUT80yQ/pE1MYSERgC0ZwsBYHNW71oUv+gSgxRA0tBYJD6CQBJC1EzS0dgCEQT0mIC47jCTPr51YuaqgZVR4hG0mICq4EFKgoJErEQWk9g6IlHtBCtJ7B8isWmrfwKrCFtI6qlLmnbaiabTbNsstynuVxGlqVsNjU6erK93Q0AyGZTxYfFYn5lOxAokUQx/wAAgN8flCQxFpuz+cHyFNovOLcCmUwMABCPB3Q6LW+yJIkAgGRyVtt8pjzPAQDS6ShBiBqahTBMguNYbW1KkpjNptX/HCoRBE4U+RrMkqTBbHYW728ugcmyLMtlf2BZluEhAAB4WMnVA2dmZitfZWZmtr396r24YlCe90TlumqQZQkeL8vYvAer54pZSduVE698L0n9F6yGOpmt9LTUbBNU8yvnFUUqub+5BGY0WozGspl9I5EkhrFGoxUAkEgIAAC4XQNOZw/cmJiYIEkDx7EqTSknzosgEABMORxd9Ug8arO1aZ54FICzZrPb6dQ+8ShNOzRPPIrjFwwGi/qfQyUtkHi0hUB9KkS9WdYCq4HKmkSKRRTQXE3EhlEPJSB1IYpBNZjGIJkh8kEC0wakK0RJkMC0B4kNoYAEVjX1Dh9BLCWQwBCIOoIEVgvzzpFBdRoCskzd9AsHSQihBlSD1YtQqJUWa0fUCSQwBKKOIIHVEVkmF7sIiEUGCQyBqCNIYA1lYmICeUeWFUhg9WVqamqxi4BYTJDAGgequ5YhaBys7iBdLWfqKLDR0dOrVq0hiLlL/PSn/3z58jTc3rbthltvvaN+l0YgmoR6CSwSCb/yyssPPviIIrBYLPrww49SFAUAwLBl3TSdmJjo6+tb7FIgGkFdBPbrX79w4cI5nueVPRzHYRhmNNL1uBwC0bTURWC7dt0DAHjiiUeVPbFYVJblH//4H5PJZG/vittv/6TZXDZ7FAKxZMC0Ta+XzxNPPPrQQ9/U6w0AAJ9vat++d2+77Q6TybRnz0uCINx99z3wsGQy8fTT/wi3161b53CUTZ8mSaIkEfVoXsqyjGFaZi+EViVJLpcelCBKp9FTZ1bCcaLmYpUzKwgCQeg0vw+SJGIYrrlZURQwDNc2+yq4kt6whmfM5fKsXXtt8f4GeRG7u3s//el74fb27Tuef/4Z5SO93vChD90Etx0Oh9lsKmckHA6m06zVqnGGPVHkRZGnKI2brxyXy2RSVqu95K/ldNpqMyuKPMPEadqhdG41QRD4qakxt7vdZDJraBYAkErN6vVmijJqa3ZqasxstjqdHm3NMkwcw/Aa8m0ajaWf2wYJDPoPu7p6AAAEQeh0V4P09Hr9jTfepMZILpdlGM5m01hgHMdyHGs2a2w2k0lBgZWsbUQR1Obn4Dg2EsHc7pWaJx6dmhrzeNrdbs0TjwpWq1fzxKN+/6TVau/tHdDWbKsmHk0k4i+++EI8HpNl6fDhA2vWrGvMdRGIxaVBNdi6dRvj8dhzz/1EFMX+/sGbb769MddFIBaXOgrsm9/82/w/d+z4gx07/mCBNmUZZDIZkiR1Ol3NHdxMJhOPx00mk91uX2B5NAQNji1JWixUShTl2dm5NVAIgqBpmqZpo7GKDjTP8+FwWJbleDyOYZjNVqOzQVtQONVSpcUiKvLHFERRTKVSwWBwamoqHA4LgqDGQjQaVUYm4vE4y2q8bpV6UPq35UArCUyWAY4DiqIKBlUkSUqn04FAQBTnWdYpk8nkK0qW5VAopFKZ9QPpagnTSgLDMEAQWGdn54oVK3p6etxuN03TitgEQYBtP+V4lmWj0Wg2m4V/SpIUjUbhtsFggCfKshyJxOs32l4tSGxLjBbrgykQBGE2m81mM+xNJRIJAADLsvF43OFwAACi0WgymQQAJJNJk8nkdDoTiQSs4jAMc7vdPM+HQiFZlkVRjEbTqVQOOk4oijIajSTZiHQaSE5LnlYVmAKGYQ6HQxCETCYDAEgkEgRBZDKZXC6nHANbhko1ZbfbdTqdTqez2+2xWAwAIMsyx3Ecxymn6HQ6o9FI07RS1zUM5E5cSrS8wCAul4vneagQpR0IAMCwuWBLSZqL/SNJ0mqdC4Sx2WyCIKRSJVZSh/tTqRRBEBaLxWKxEITm4X+Ipc8SERiO4x6Pp8DPYTabnU4nwzDRaFQRmNPpzK+RXC6X0ajP5RiKMomiKIoiy7L5VZkoirAJStO0y+XSPLq0JKgSWzIsEYEBAEiS9Hg8wWAQhsa73W6TyQQAMJvNNE3H43GGYcxmc/GgmU5HSJIOHgwAcDgcUGYsy8JmJwBAluVMJiOKYltbW4NbjIiWZukIDABgMBi8Xm82mzWbzfleChzHnU6n0+lUaUfxoDidznQ6nUqloCs/m83Ozs56vV7lSFgxNqZaQ7QiS+3JMBqNDodDKx8gQRA2m627u9tsnpvEwTBMOBwGVyJCpqenp6enGYbR5HL5IAfj0mBJ1WD1w+12S5IEhZROp3O5XH5ChHA43N7eDtONIBD5LLUarH54PB6DwQC389UFAJAkKRQKzRtHgliGIIGpBcMwr9ebX01RFKXE4wuCAIetF6l0iCYFCawKcBxva2szmUwmk6m9vb2zs9Nutyu+k1wuF4lENLwc6oYtAVAfrDoIgvB4PpAHwmq1chyXTqcBAOl0WpZlp9OJRqURECQwDXC5XIIgwKhiGJblcDgwDDUXEaiJqAWwe6bXz2WhkSQpEonE40kA0JD0cqe5ajBJEkSx7OwsSRIBkCVJ4+lbMBXews16ve5MhonHE3D0WRAEAAhBEHS62quysbELvb09yp9TU9MdHV4AgCBwAGhZQwpCDgAgihzPZzU0CxFFXnOzsixLklAHs5IkiTWYxXGCIEqMvtYx8WgNpNPRVGq23KfB4GwymXM4mmKSfzkkSc5ksrncnFyNRtJkMizEoNs9lwI5HE4V7NEQQeDHxia7ujoq5KVsKsbHL1ksFo/HtdgFmcNgMDscXcX7m6sGo2mrXl82AWgymUunIzStscB4PsfzOZquOtdkOcxmEI3GoduDZXm73bmQyBK3uwcAMDU1Db84HG2z2zvzc0suHI7Ljo1NWq0ezVN5hsOTJpOjhlSelbl0yUfTVrd7hbZmE4kAjhMWS9U3oVyu5eYSGI7rcLxskXCcAACrcEBtYBgPL62hTafTybIsFEMkEuvo6Kg5RNjnm8kvniyDcDjhdlPaJh6VJBkAQBAUSS6ovi0JQZCam8UwDMd1dTCL4zihoVnk5KgLOI4rbS2O4+CEa8QyBAmsXlAUCcDcJLREIsEwjIbd3ampaa1MIepKczURGwaczlj/UAlJp6MEQYDpqzAMMxgMRqPRbDajGS7LhOX4MyuThes/a1h2Oq8ueiDLMkx05fP5YEKehYACqVqCZSewAlHVW2NwDmh+ejlwJYGc3+9fYNrTiYkJJLMmZ9kJrJiurva62qdp2uv1rlixor293WazKY1DjuOCwWB+ip7aQBprZpaXwMrVVx6PxqM0JTEYDA6Ho6ury2w2KxVaMplcePpupLGmZRkJrEnyNBEE4Xa729vbldHn/HT5NYM01pwsBS9isXKKn7Z51dXX19fIZ1Sv13s8Hr/fDwDgeT6RSDTVWkoIrWgxgVEUpqYiKlCLyrqrwRqjKMpqtUJ3YiKRMJlMC8zVg7IpNiFLtolYmy++wQ+ow+HQ6XQAAFmWF+7tQDQhLVaDVUXzv85hYn24pCDLsgzD0HTZWGdEK7Jka7CaabAsTSaTkmw4EokU5KuqFuTqaDaQwErQYI25XC7otRdFMRgMovRvSwkkMFX0XaHmAyqg0+lcrrmJgzD9m7JURQ2gSqypWMp9sIWgeBSrDa2qzRVpNptFUYSLleVyuVAotJBVJpA7sXlANVhZaq6RajvLZrMpC5fBVSZQPbYEQAKrC7VpzOl0KqsoMQwzMzOTv05ntSCNNQN1bCKOjp5etWoNQcxdYmrq0muv7WEYZsOGa3buvA3DkLZL4PF4ZFmGq0zwPD8zM+NwOKxWa23NRdRWXHTq9ZRHIuFXXnkZLqsFAJAk8eWXf3nLLZ944IGHLl/2nT59sk7XbR68XndtJ3o8nvywqVgsFggEag4IRvXY4lKXGuzXv37hwoVz+UM64+NjNpu9r28AALB9+45jx97buHFzPS69BMAwzG63G43G2dlZ+IbK5XLBYJCiKJvNptejRZJaiboIbNeuewAATzzxqLInkYi53XOpsDwebyIRVz7K5XJHjx6E2w6Ho0JevlQqwfP81NSYtqXlOCaXYzhOY7PpdBLD+GQyXnNj2GymMxlWeU9xHDc7O0sQuF6PCQJQb/b48ZjTOU+uO0HgAQCzswGGSddW2nKkUrFMhqcojQPBBEFIJuOaPwwME8cwPJmsur1gNJo8nhITCxvkpmcYRsksTVF6lr26JGQul92797/h9rp16xyOslOzJEmUZVnzeyrLsizLsZjGiZ9gwuBkMj7vkZXBcUySMCULtyhKDCNns9WZTafD8x0iAwDC4UAkonG6b0kSMSyh+cLWoigkk/F0eqGZFwqAvxqGlc1+Ww6Xy7OYAjMajfF4DG5zXM5guLoSudVqe+SRx9QYuXBhJBYLb9t2k7ZlS6ej6XSkvX1IW7OhkP/MmWM7dvyBz3d54dY4joPruAMAAMDMZof6Jachlb0duRx74MDv167d7Ha3LaCYJZiZOWe1ek0mx/yHVsPBg7/3ejv7+9doazYSmSIInd3eqZXBBrny7HZnJDL3Eo1EIna7xrd7yUNRlNfrVZz4yWQyk8ksbpEQamiQwPr7B6LRSCDgl2XpvfcObdy4qTHXbQY0dJS73W5lzlg4HK4qMhi5ExeFBjURcZzYtetze/a8xPP86tVrNm26tjHXXWJgGOZyuYLBIOw3hkKhzs5Ozbs3CA2po8C++c2/zf+zp2fFffc9UL/LNTMazpUmSZ3FYkilsrIs8zwfj8cdDrXtbTTu3HhQOEWD0PDJpiidxTK3glEymVzgFDJEXUECWzQWMsPFZrPWlmsA9cQaDBJY48jXUrltlWAYprjpWZatKpAKaayRIIE1FKilYkXVoDGapvNzDVSVWRFprGEggTWaclqqQWOKe0MQhGpXk0AaawxIYE1EtRqDmRXhdjweV+YuqGTiClWdhagKJLDmolqN2Ww2giAAALIsh8PzBhyWBmmsfiCBNR1VaYwgCKWhmM1mUfbSZgMJrBmpSmNms9lsNsNtFKPYbCCBNSlVaczlcimzgcLhMMdx1V5uetpX7SkINSCBNS/qNYZhmMfjgUv7wc7YQjJSITQECaypUa8xnU7nds9lAeE4bmZmplqnIqIeIIE1O+o1RtO0zTaXGgBmpKoq65ssL2jxJERJkMBaAPUaczgcisZEUQwEAsjnsbgggbUG6sOCHQ6H2+2Gk8RkWZ6dnVUf5BEMVp2LAlEZJLBWQqXGzGZzW1sbHIAGAESj0VQqVc9yIcqCFn9oMXp7u8+dmz8BlsFg6OjoCAQC0NURjUYxDFOGyypQENWBJmguEFSDtR5ut0XNYTqdrr29XZk2FolEUH+s8TRXDcayiUymbMa/bDYlinw4PKntRUVRkGVZc7OpVAIAEIlMw0dcK2DiPqtVFwqpSo1otdLxeEqSZNgfy+UYg6FEbmBJEgEAuVwGgA8490dGjre1LTQFWDodZVmNExhKksCySc1/NUHgBCFXg1mKMlqt3uL9zSUwDCMIoqyzGMNwALAKB9SGLMuSJGpuFscJAABBkMryF5ogSSIAHI7r4LDyvFAU7nTaotEkHHpOJjMEgRfn34bTyTAMLza7wDvD81kcr/Sz1gqGYbjmZkWRx7BanjEcL/0rN5fADAazwVC2nxAOxxiGdTg0SwoJgYlHNTfL8wCAS3Z7O0lqmU2e49hIZMpq9bhc3UB1IDxF0critPF42uv1KpM1IaIoADBLUUaDoTB1eTyeW0hPbGbmHE3bNE88iuNnDQaz5r+a5olHm0tg6tm9e3fBxvIEPvrzyoyiqLa2NqgxmO+tra3NYDCovApKR1UzLSawn/zkZ//5n2/n7ykQ2PLUmxqZwdzAgUBAyano9XrVawxRGy0msHkpFti8eziO5TjWbHZWOKUlmDf7ol6vb2trg4usS5IUDAY9Hg9N02qMo0qsNpaawIqpQS1qVNqczKsxg8Hg9XrzcwO73W4142PgSg2JZFYVS19gmtBCXT41GlPqMQBAOBwWRbHCsmwFoKqsKpDAqqMllKZGY+3t7YpfMRaLVbuOBNKYSpDAaqQllFYBiqI6OjqCwSCUVjqdBoBQn1wRaUwlKFRqoezevbsJNabm6YexVBSlDNPh0WhMfboBlItKDUhg2tCEMlOjMYIg2tvblXX9RFGcmZlBIYsa0mICm5yc3rNnTzabXeyClKbZZKZGYziOezweu31umiZM6aFyChmqxOallfpg8Xh87979LMuOj49/4hOfGBoaymazo6Ojp0+fjsfjdru9ra3N6/XabLZkMhmLxWKxWCaTaWtrW7FiRW9vb8MGVaHG7r//y425XGVULk1msVji8QiGkdB9H41GZVlWJkdXAHXGKoNVtWjA4vIXf3H/U089rfzZ1dUVCASgH2xeMAzzer39/f2Dg4O9vb1KhDvLsuFwSBBydrvHYDDo9XqVQbTzksmkZmcDvb39MOpXq5oNxiK63StJUq/+rHk1JorC9PSEy9UWjyeUW2qz2dSv7ldOZst8EfRWqsH+/M//7NChw++/fxw+AZcvX1Z/rizLwWAwGAweOHCAJMmenh6O4yKRSPHCPy6Xa3BwcGhoaMWKFYoOc7kcSZJaaa/xqKzHCILIn6aZSCRA3hITlUFVWUlaSWAEgW/atPG667bv2bPH7/fDnSaTaf369X19fdFoNBQKhUKhZDJpt9sdDofD4TAYDD6fb3JykmEYxQ7P8+Pj4+WuEolEIpHIoUOHSJKkaTqXy8EuH0mS3d3dvb29vb29XV1dSqJPlSx690ylxnQ6HdQYdN8jjS2QVhIYxOPx/Mmf/MnRo0ej0ejQ0FB/f7+aVcDD4fDExMTFixcnJiYKBlVJksQwrNg9zfM8fLyUP/PXIjGZTE6n0+Vytbe3b9q0SU0Hr1U0Bl2LoVAIZn1LJBKyLCvr/VUGaayA1hMYAADH8W3btlV1itvtdrvd1113nSiKU1NTMzMzRqPR5XK5XC6SxGGwbzabZRgG6nB8fLzyiFAmk8lkMtPT0wCAt99+e+vWrddff/28QX3NoDGgoktGEASc3gI1Bp2KSGM10JICWwgEQRSkQOO4uW6YwWAwGAxOp3N4eFgURb/fLwgC3KnX68Ph8NTU1NTU1PT0dME4QS6X27dv36FDhzZv3nz99de7XK4KBagssMbIT43McBxva2sLBALwRZNMJjEMQ23Fall2AlMJQRA9PT35e2DvC24nk8loNAp7fSdOnIB6EwTh6NGjR48e7e/v37ZtW1dXRw3XbWQVN2+LEcdxGLKotBV1Op3FoirlDtIYpHEC++lP//ny5Wm4vW3bDbfeekfDLq05VqvVarWuXLkSAPCxj33s6NGjBw4cSKfT8NPx8fHx8XGbzbpmzarOzl6KIqoy3mwag9NbYD0WiURIklQ5oog0BhopsFgs+vDDj8LINwxrVX93MRRF7dixY/v27cePHz98+HAoFIL7E4nkoUNHT58eveGGG6677rq8kL/5aSqNwf6Y3++HoyOzs7Pt7e0kqSotzMTExDKfM90ggXEch2GY0ahq8mwrQhDE8PDw8PDw5OTk4cOHz549C2dbZTKZt956a+/evRs3bty4cWN3d7canye40hlrWJfs4sULFQ4gCALWY5IkiaIYCoU6OjpUjgqGw6mS+cyWCQ0SWCwWlWX5xz/+x2Qy2du74vbbP2k2zzXlZVnO5eZ8BjheIm2YgiRJAMg1r3z12GOPKtt/8zd/q2zLsiTLklYLavX09PT09CSTyf/5n3dPnjwFR2yz2eyRI0eOHDlit9vXr18/ODjY2dmpJl/iY489ll9sAIAgCJIkCQKvbSugo6N9enqiwn0gSdLpdMJloHmeDwQCdrtdTVtRlmVRFAShivlm6pDhfdDWqCiKAGA1mMUwrGR+vgaFSvl8U/v2vXvbbXeYTKY9e14SBOHuu++BHyUS8Sef/B7c3rhxk9NZqQ/9s5/9e20F+PznP6eVKfVks9kzZ86ePXuheDojQRBut6u9va2/f6XVqsptUPwVNEfFCkY4APldShkAEYD5HyEM01xgzYXb3bZhw9bi/YsQi3j58vTzzz/zf/7Pbvgnx3GnTh2H2zabtUIOllDIzzDplStXlTvgBz/4Ucn9X/vagxWOF0VeEDi9Xu2ceZVwXDaVSjqdbp4Xzp+/cPbs2elpX/HdxjCsv79veHi4u7tLjdmvfvUrmUzUbHZpm89UELjx8XOdnSuy2XmW7ctkmGz2A8uOkSRpNtPlmh65XEanowiCdLtVDaOpZGLirMVid7vbNbQJAMhkohiG07S92hMNBqPT6Sne3yCBQf9hV1cPACAQ8P/8588+9NA3qzVy4cJILBbetu2myodVlcht9+7dxVmlNKEg2BcAkEqlRkZGLly4MD09XVyndXZ27tixY+3atZX7NqIo3H///6422Hdecjn2wIHfb9iw1e1uA/MNkeVyuVgslj8YiOO4y+VS5pXlk05H9HoTSRqApglzWiXYt0ECO3Pm1BtvvPaFL/ypzWb7j//4DY7jt9/+yWqNqBRYtXzjG48UC6ycjyF/T2XpFgtMQZKky5cvT05Onjx5cnb2A0ty2e3266+/fsuWLeXcdKIosGyCpu353ciFUyAwSGWZZbPZeDyeLzOTyeRyuQpeEPkCA9ppDAmskP373z1y5KAoiv39g7feeke1wbKgbgKDqbPb24cWaKdAbxUEpiDL8tjY2P79+wseZaPRuH79+v7+/pUrVxbnuIYCw3FCQx9jSYEBFUFV6XQ6Go0qrhGdTtfW1pb/digQGNBIY0hg2tPkAoMoD70agSkEAoH9+/ePjIwUOPEwDOvo6Fi3bt3w8DB02eULrOCKC6GcwIAKjQmCEA6HlaoM+vSVF+gyF9jSGfBtEmp73Nvb2++6664HHnjg+uuvzx+SlmXZ7/e/9dZbP/rRj95444386P4FXlE98+oB1loOhwMO8cG1ofPnBxWwrBINaNnMqDfR6Gw2y3R1rdTW7BUnR6UI3ar4yEc+8s477/A8xzBpm82hfsDKYDAMDg5u27bN5XJRFJXJZBRfiCiKPp/v8OHDiUSip6fTYDDlm33nCh/5yEdqK7MoCj7fhNfbSdMlJgQ4HI54vNJyZBiGGQwGiqIUXTEMg+O4Xq/nOFanowp8nvF4XP1c6ZL4fBMmk8XhcC/ESDEsm8Bx3GBQNXCiBhTsWxd2794dCvkffvjrNZyr1+s3b968efNmmNp6ZGTk6NGjcOa1JEnHj5+4fNn36U9/xuUq8WzVL1ujmrlkNE3D4GBJkmBij2w2azAs61bSsv7y9ebzn//co48+Ov9xZcAwrK2t7WMf+9iDDz546623Kq/82dnIM8/8a4VJ2aA+7UY1fSe9Xq+sWwsAYBgmkWByuRIz65ZJQxHVYHVn4RPASJLctm3bdddd97vf/W7fvn0AAJZlX3jhhR07dvT393d0dJQMWapHNKOaegzmDJ6dnYVuD1GUIpGYIEg2m60gDnM5hNsjgS0y6mWAYdgf/dEfeb2eV199lecFSZL27t27d+9eAIDD4ejr69u+fbvXWxhWq7nM1CvLu8gAABuiSURBVGgMBuDD5HkAAFmW4/F4Lpdzu90E8QGfaoGppac3JLCmQL0M1q9fbzbrf/vb1/M9ijAJ5Pvvv79q1aobb7xRmRiab19bjeX/WVJvGIbZbDaj0RgMBkRRAgCwLDszM+PxeCoMgS69FZKQF1F7LyLkyjjYQME7uwLQ/Vj5GFmW9Hpiy5brSJIkCCKbzcKAfUgkEjl+/PjY2JgkSQ6HI3/At7KbsbIXsTIVfIwEQeA4DwAOCylJUjqdht7FCgbj8fi8bkbkRUTUgsqqjKbpj370o3A7Ho9PTk4ePHgwEAjAPT6fz+fzvf7664ODg5s3b169erXS+amTm7FCkg8Mw5xOezbLw2zBAIBoNAqbi5Wnxi2NHhoSWDNS4ennOPYb33g4f4/dbrfb7Zs2bZqamtq3b9/58+fhflEUz507d+7cuVWrVt15550FIVcNdoFYLBaKomZnZ2FVlslkRFH0eDyVq/cloDHkpm89vva1r5Tc39vb+9nPfva+++4rSCB3/vz5f/mXfymZCLkew2XlPtLr9fkOz2w26/f7510tqdW9+UhgLcmjj36r3EdtbW0333zzX/3VX917770DAwNwZyKRePbZZw8ePFgceqp5/o8KGoPeRSUvFVwtaXZ2NpPJVIiJzc/32nIggbUqlVWBYdjAwMA999xzyy23wPkjoii+8cYbTz/99IkTJ4qf5u985wkNp3gXZJ4sKJjL5VJymMqynMlkZmdnp6amQqFQvsOmgBaVGeqDtTDzeiwwDNu+fXtHR8fLL78Ms/POzs7u2bPnwIEDN91005o1awrcDP/wD/+Xpk1aVWhQY6dORYo/slqtsEumrOQiyzLDMNls1u12V5jV3nK9MuSmbyI3vRqU6Sr54bMfuUJJL7/NZtu0aVMikYApawAAmUxmZGTkxIkTgiDAwGJZlpLJuMlkIUlqgXHDBUhSyuNpy2QK10zU6XRWq5WmaRzHBUGAlSqs0CRJKnDJ5AM9+K3ipkfzwTSeD6YQCvnPnDl2440fJ8kqMiLOi8r1wUq+N0Oh0DvvvDM6Opq/kyCINWvWXHPNRpLE2tq6aLrEtP+FvIXz1wer0MZLp9ORSER5Gg0GQ2UfYzA40RLzwVATcWlSsvXo9XrvvvvuYDD47rvvKpkbRVEcGRkZGRkxGg3r1q3bsmW4s7Pw8dLKp6+07oqVZjab9Xp9KBSCM3Sy2azP53M4HFartaSpopwmTQpqIi6FJmIFipuOZrN5/fr1w8PDJpMpEonAvPMAAEEQZmZm3n///XPnzmEYVlyB1NZ0hDOaKeoDTb6SwR8EQVgsFlEUFd89y7IMw5AkWZxDMpmMSxLIZrkFzisrYIk3EQWBE4RcuU8vXbqYSMQ3bSqRfW4hZLPpbDZlt9eyVkMFIpHZCxdGt269QadTlWVaJYLApVJhq9VDEFWb/c53vluwR5KkixfHTp48efHiWMFivDRt3Lx58/DwluI65Fvf+mv1F43F/EajzWAonRVvetpfvJNh2Hg8oWRPwDBMr6domjYaDYpXJhDwGY0mm21OXT092jTqUqkwjhM1LHiL47qClwikuQSWTkdTqdlynwaDswzD9vUVRrJqSDiccru1eXulUmm/PzA42KdtDaYJP/jBUwV7GIY5fvz05OSU3x/I34/j+MBA3+bNG3t7uwtOKTfeXRvhcCr/T1mWM5lcNvuBhiCGYRSlMxhIkiRisThFUSbTVX+jVj9cbRgMZoejRGbL5hKYLMuyXDaF9cWLo/F4ZOvWD6k3eOnSZIVPV65cAQDIZGKZTMzr7c8/GH6kxn65I2dnZ0ZHT9xww8e0dnJkYzGf09mridlvf/tv4IYo8j7fpNfbkU4zhw8fPnnyZEHmRo/HA5fq7erqKkjM9vjjj1W4RDB40WJxq0zlWfB7ZbPZWCxWHO2h1+sFIWs2W+z2woa9yh+uHLGYD8d1NlvV+UwxDCuZG6K5BFaZCxdGgsHZrq4VJadLqJlDUZLKiUdLjrqomcW0uF7Eann00W9NT8NoehMAIJvNHjt27MiRI3BCVz56vX7lypUbNmxYv359/jBauc58vhdRPfl3OJvNptNphmEKUm5VyHZa81jZck/bBgVW4RiVS6Tmoyaz77xmi3/R1hKYkrbtqaeeVnbKsnzx4sXDhw+PjY0VPycOh+NDH/rQpk2b8tvAxTKrTWCQ/BsOR6JTqVTB8qIURTkcjnLjZtUqDQlsHoHVgFapswt80EpexIGBwfz9YGETCustMJgXsUAnsVhsZGRkfHx8amqqwBdisVi2bNmyatWqjo6OkhXaQgQGSr3UcrlcIpFgWSb/yTUYDBaLxWg0lkw8rv6GI4E1r8AKqJx4tPJPXiEgqDECgxRXRzzPT01NnThxojhHqslkGhoaGhwcXLlypdJs27179wIFBimWmc93CcN0PP+B2EUMwyiKMhqNcFnt4vlm8yoNCWyJCAyo6zQWPxCNFFgxiuRisdj+/fuPHTtWUKFB2tra+vr6BgcH+/r6GCam15ueeOLvNSmncpdgqBRNWwqWoVAgCMJoNNI0bTQaC5RWQWZIYEtHYFWhPBOLKzCIIrN0On3ixInz589PT0+XfJBoml61amDjxmv6+gbgU65JYMPExER+LCLLsul0mmXZkqsH4jhO07TFYsnPU1BOY0hgy1RgCqIomEzS4gqsgN27d7MsOzY2dvHixfHx8VQqVXwMTdPdV+jq6qIoaoFKg7npMezqTZBlmed5lmVZli1Zp+l0OrPZbLFYCkYm88WGYhERIBxOMcy04jtZdJRIxQ0bNgAAwuHwxMQE1JvSgGQY5vz58zCdAUmS69evn56e7unpAQur0/K9u7ADRlGUzWaTJAmGWTEMo1QhgiDAdDo0TVutVmVutSbOp3KgGqz1arCC1VWAFk/GQmqwAhTBZLPZs2fPHj/+/tRUiaU9AQBer3fLli1r166F0VhVKa14dZWSnViotFQqlcvlCsqg0+n0er1erzcYDCRJwhYsyyYw7Gos4sJvLBLYUhBYBVQ+IhoKLJ/du3en0xFZJoLBsO8KSnixQmdn59q1a4eGhmBmUjVKm3f5ogK9iaKYSqVSqVRJrwxBELD1yPOZfIFBFiIzJLAlLjCFyk9JnQQGAJiZOffUU88q64OJojg6Ovr++++XrHBwHLfb7S6Xy+PxdHd3P/nkkx0dpYOw1a8PVjBaDSu0bDZbcr1sitIZjQaTyarT6dT7HivQen0wnuc5juM4TpZlOOJROb2e5sBLUxTV4OsuEJXDAPXgG994RBkHg121DRs2RKPR48ePj4yMRKNR5UhJkqLRaDQavXDhAgDgxRdftNvtPT09HR0dHR0dTz75pN1e9fLkxd9xYmJCFMVsNpu7Atwvy3Iux+dyfDyeAlfakAaDAbYha/vurSQwSZJ4Xs5PP5ZMJmHlbjabi28Bx3G5XE6n05WcUFQB4QokSeb7duGSPIqXTKfTURRF5lF5/fImRFFdZ2fV4a21Udz8u//++0dHR8+dOwfXPSr4FLolTp06BQB47rnnHA7HypUrBwYGvvSle7zeGn19+ZKDYstkMslksiDlDnwGMpkMuJLgwOWqetJgizURfb5QuU9JkqRp2mAw6HS6TCaTv3odAADHcagxWZbhrwiPp2lakvhcjiEII0y6Iopi/j3R6/V2u91oNOZyuXA4zFecSav0m41GI8dlKzcR4RvUZDJVED/P87lcLl/nNTcRKyOKAgz2Xb9+Q4XDanC4qYzk2L17tyRJsVhsdnY2EonMzMxMT0/DRD0lgVNCe3p63G731772tTVr1kCfZG3A78WybCIREwRREEr007Zu3aoknFNPiwnM75+V5bmqA0Z/LtwsQRCSJFa+DTqdrkB484LjuCSJNptNrzfo9Xocx5UmZSaTSSQScBYGjuMOhyP/lxNFURnMUXrkFEWZTCaTyYRhoK4CK5mToxxqZLaQUCmfz/fggw/6/f5AIDAzMwNXISyHTqez2+0Oh8PhcHzmM58ZHBwcGhrq6+urnAe/gEhkKhSKGwwWnufh241hGJ7nCYL48Ic/XEOnoMUEFgjMdnX1Kt8TLiaQTqfLJYjV6/WiKFbItlcOgiBwHC9ZX9ntdpvNJooi7A3CXwJ2zOa1SZIkz/PFjiyapl0ulyiKyWSyQhZODMMIgsAwmaL0Oh0JXzSa9AZrE5hCBaVpEosImZyc3Lt37/e///2xsbF0Oq3mFBzHe3p6BgcHBwYGYJxkT09Pb29vQWiyQsFAM6zZ4G+9du3aGsrcYgIr50UUBIG9gizLJEmazWal9SVJEmxPAwCUbhIciFQkhOM4DF3T6/UEQcC7n81mk8mkUk+SJOl2u8u9EQVBgD3mbDbL87yaG4vjuNLryN9WgIqa9wVBkiRFUcQVYOHlPCRJkiQJLmsCv2CBhQUKrBx9fX0aCiyfF1545tIlXygUPXPmzOjoaMnE4BWgKGrFihVQdQMDAwMDAz09PT09PQBkUKjUPG56URTVz9IXBCGdTsqy6HB4yh3D83wqlSIIwmq1qqwrJElKJuPxeIymzbkcV1BlYRhmMpmsVitBEJFIpLihSxAEjFKFYuB5vrhXuRBgXxH6fqATSJYln++S5gIDV5LeQDe9hk7LAjd9KpUaHx+fmJgYHx8fHx+H09gSiUTJ6MQKGI3Gnp7u7u6erq6urq6ujit0dnb29vZW5SqDLEGBVUsDxsEkSYItVag06IlRjoQrQcIfQq/Xw3ScJZXMcRzH5bLZDEHoJUmCTdNqn6EK4DgO27GKUxReIpfLCYKAYRg8ALafCYLQ6XTQewQXKys2KMtyKhWhKCNJGkoeULPk1IyD8Tx/6dIlGLQF/5+cnLxw4ULJSMV5OXr06PDwcLVnNc5NPzV16bXX9jAMs2HDNTt33lYygcFSBcdxHMfLjaVYrVaj0ciyrMFgoKhK058piiIIHACOpq3QySHLsiAIsCsoXgFqFTaGoXMF/g8Hf0qGMkBgS7JcPSnLMrRf7jvC1im8OizGldd3GgAABUlRFJQl5OzZs/DPck0DxYjStlevSZIkh4aGhoYKU8qm0+nJyUlFeGNjY5OTk5OTk5WdKMXpItXQIIFJkvjyy7+8885d3d09zz//r6dPn9y4cXNjLt0SwBqjhhMxDKv2XCgzjuNgv5TneU3qQCjOytcVRbE4TgoAoNSNcAPHcfjiKNAz/NTv9+t0ulwOBIORZPI4vKgkSUQe4Mqbpa+vT8hDlmXYdujs7Ozp6fnoRz8KIzbgznA4PDLyXjAYSiSyfr/f5/MFg0GfzxcKhSKRSPH612pokMDGx8dsNntf3wAAYPv2HceOvYcEtlgQBAE9/soeWZZ5nvP7px0ON0lSindUlmWCIKBfBGpYFEXY3IUbUANK07dmKteNxYdxHAcAls1y2ew8y4v5fL6qSoLjdEfHyo4OsGbNBxqf0JFYQwa+BgkskYi53XNeBI/Hm0hczerKsszvfvcG3G5ra7fZyq4RnEjERFGIRMqONdeGJAmiKORyVbvyKyMIPAAgGp3VtjEsy5IgcNksr7lZAORsNiMIcHQO6PVzz4Yk8SzLl2w9EQQgCIKiCFkGcCxRlmUcxwGQ5xKZYYDnczqdDsMIUZRkWZYk+UqdIwMgw1M0/CJ1giCIS5fOVYjUMZmsJb0DDRIYwzCKd5ui9Cx71W8miqLfP+djNRj0OF72NQbHmjiulh5qBWRZkiRZljU2Cx8jjstpG7Ioy7IkiZIEtA2EhE+5IPCStKC6CABQUA+JoiDLMobNvb8wDMBqgCAAAHA4AbtSgA+43OAXhCqFS6/kHywIImwxyvLVW6HItVizirX8j6rSdjqdqnDPy437N0hgRqMxHp/LsMdxOYPhapIts9ny5S+ryhELvYgdHRpn9q2rF7G9vbtJounnNTs9PeFweOrqpteQCssXKbMwoYMEx/GS8b7KkbDlCfdHItMEoSvOoy4IQsksOvPSIIHZ7c7Tp0/C7UgkYrdrPOyIWEoUBOOCUp7DYHDCbrdU8ChWdjbmf6o4OQAAOh0BvZ0Fx9cwAjZ3Ym2nVUt//8Bvf/tyIOBva2t/771DyMOxbCm3glE5PbTWepbFNEhgOE7s2vW5PXte4nl+9eo1mzZd25jrLmFqyGGs4XUh+Vcv1wwrd26rK0cljRto7ulZcd99DzTscsuEvr6+OmmsZFVToAo1zTBljeZloqgCWmnCJUKht/fq3KcKVVmxSMo95bkc6/Odb2vzFKcMUOzXphC325JKSctTXQAJrAmpsM6qmrNq+HTh9ivT1dWg6dJNCBLYB6h5DaRGsrgrzSGqYhlF3M5L8Uu68Q2bZegGWNosI4H19fXVPGzSPBQv5YpoZpaIwCqLB+Tpp+8K+Z96PIXrfBef2ABaReQI9bRYH4yiSsSq5IsHbqgZxFR2ptPRdDqiZSkBAAB4ve5weHqBRgq88H19fRxXac4SotloMYGBUs9cyWNA+SibBV5R5SmhkL/cR2C+IdpyZyFajtYTmHrq/VCq8af39vb6fJeLy6O+bEhaLU1L9sGK24QNu2LN5yKdLE9aUmBgsR3o1RYAqWvZ0sJNxEXXWP7+avtUiGVCq9ZgCERLgASGQNQRJDBtQM1CREmQwDQGKQ2RDxIYAlFHkMAQiDrSXG56homn09Fyn7JsUhT5UGhc24vCrIgLNwtT5Sp24OqM4fBkDelgKwBT+UWjl7XNiwjz0ScSQUnKaGkXAABAKhXOZGLa2hRFgWHidXgYBJ4HNZjV62mbrcS80uYSmE5HGY1lZxMSRBTD8AoH1AbHZTmO1dwszOpsMJhrzvhVElEUWDap19Pa6pYgcgAAijJqfh/S6ShFGTTPi4hheOWnpTZYNonjuF5fNr10OXS60qt2NJfAKIqmKLr8pyEcz1gsZRfyqo10OsrzWc3NsiwPADCbXSRZacGUauE4lmWTJpODJKtYGXVecjkWAGA0Wutxe/V6s+YL8OE4TlG05qXlOJYgdBqaRX0wBKKOIIEhEHUECQyBqCNIYAhEHUECQyDqCBIYAlFHkMAQiDqCBIZA1BEkMASijjRXJEdlkslULJbU3KxeT2u7jDKEZdloNAVXatYQgiAtFo+2cVIAAFEUo9EUy2q8UDUAwGLxUJRx/uOqJBpNah4nBQCgabu2q8u3Ug0WCoUuXryguVmSNGgeyAMASKXSp06dqIPAdGazE8c1fjMKgnjq1AmG0T7S12x2ah6ICAA4f/7c7GxYc7NGo9VgqDoQsQKtJDAEouVAAkMg6ggG5xe1BAyTEQTBarUtdkFUwXFcJpO22zVu09cJSZISibjZbCFJcrHLoopEIk5RlNFYdu5Fk9BKAkMgWo4WeLkiEK1Ly7jpp6YuvfbaHoZhNmy4ZufO2xa33XX27Jm3334zlUp2dHTdccddNptd+YjjuOPH39u27Qb4Z8liL9Z3KSjbyMjJt956PZfLDQwM3XHHXXBi6KIXeN++/37rrdfz9zz00DdNJnPJe77opZ0fuRUQReGHP/zu+PhFjss988zTJ08eW8TCxGLR7373cZ9vKpfL/fa3L7/wwrP5n77yykv/9E/fh9sli72I3yW/bOl06jvf+dalS+MMk3nuuZ+8885bTVJgSRIFgYf/Llw49+///jO5zD1vhtLOS2s0EcfHx2w2e1/fAElS27fvOHHi2CIWZnp6sq9voKurh6KoG274sM93dZW9s2fPzMxcVv4sWezF+i4FZYtGI2azZcWKPqORXr16XSgUbJICYxhOEDqC0GEY9vbbb9522x+DMve8GUo7L60hsEQi5nbPpUnweLyJRHwRC7Nmzbo//uNPwe2ZmcsdHV1wO51OvfPOW7fc8gnlyJLFXpTvUlw2r7eN47izZ0fi8djIyMmVK/ubqsAAgPfeO9zX1w+bgiXveVOVthyt0QdjGEavn8vxQlF6lmUWsTAkSUFX9unTJ95887/uvvseAAAA8iuvvLRz5600fdVxXLLYi/FdSpRNrzfs2PEHv/rVz0mStFrtmzcPN1OBgSiKBw/u/+IX/xT+WfKeN09pK9AaNZjRaOQ4Dm5zXM5g0D62rSpYlvnlL/9t37537733C93dvQCAI0cOulye/v6h/MNKFrvx36Vk2SYmxo4ePfjVrz788MOPrV695uWXf9E8BQYAnDlzyuPxmExXo5aK73nzlLYCrSEwu90ZicwFnkUiEbtd+9BB9Yii8Pzzzzid7i9/+Ste71yuycuXfSdOvPe97337pz99OhaLfu97385k0iWL3fjvUrJsExNjg4Or7XaHTqfbsmXbxMRYubItys0/efLYwMAq5c+S97x5SluB1hBYf/9ANBoJBPyyLL333qGNGzctYmFGR0coSr9z5235Mfh33rnrkUcef+SRx7/0pT9zOJyPPPK4yWQuWezGf5eSZevu7jl/fjQcDnEcd+TIQVgnNEmBeZ4fHx8bHLxa5Za8501S2sq0Rh8Mx4lduz63Z89LPM+vXr1m06ZrF7Ewfv/lycmJb3/7r+GfNG36+te/VfLIksVuku+yatXaSCT8858/y/N8d3cvdCE0SYGnpyftdrvD4VL2lLznTVLayqBQKQSijrRGExGBaFGQwBCIOoIEhkDUESQwBKKOIIEhEHUECQyBqCNIYAhEHUECQyDqSGtEciAKeOaZp32+qZIfXXPNtZ/85N3f//53GCZz9933rF27ocFlQ+SDajAEoo6gUKmWRBRFAGQAgM83/bOf/T8AwBe/eF9nZxcAAMMwHCdEUQAA4DhRj6zgCPWgJmJLouSm1+l0ygZBXP01f/jDv4dNxMHBVX/3d48DAG6//c5Dh/bH4zGvt/3mm/8XjuOvv/5qKBRwOJwf//htAwNDAABJEt999+3R0dOxWNTpdF133fXDw9sb/uWWFEhgy4VXX30FxzFJki5fnv75z5+VZUkQRFmWgsHAiy++8OCDjxgMxl/96oXz50cJgnA4XMFg4NVX98Tj8T/8w5sXu+wtDBLYcmHt2nV33PGpqalLv/jFcxyXGxgYuuuuTweDgX/7t59yXC4QmAEAnD8/qtPpHnjg6xaLdWTk5Esv/WL//ne3bt2en5cOURVIYMuF4eFtBoNh1ao18M9rr91K06a+vgGC0ImiwPPc5cs+AIDZbHn//SMAAEmSMAyXJOnSpfFNm7YsZtFbGSSw5UJBdgqaNsENxQkCEzDF47F33nkr/8h6rGm0fEACQ8wBV9VYv/6aT33qs4tdlqUDEhhiju7uHgDApUvjmUzaZDLPzoZ+85sXZVnatesep9M17+mIkiCBIeYYGlqzcmX/pUvjTz31Q5fLHQjMiKKwefMwUtdCQAJDXOWeez7/9ttvnjt3NhQKuFzu4eFt1113/WIXqrVBkRwIRB1BsYgIRB1BAkMg6ggSGAJRR5DAEIg6ggSGQNQRJDAEoo4ggSEQdQQJDIGoI/8fsWVvfbebj4gAAAAASUVORK5CYII=" /><!-- --></p>
+<p>This may be closer a constant theoretical dosing regimen you may wish to explore.</p>
+</div>
+<div id="option-3-simulate-a-larger-study-with-a-different-condition-resampled-pk-parameterscovariates" class="section level2">
+<h2>Option 3: simulate a larger study with a different condition (resampled PK parameters/covariates)</h2>
+<p>Another option is to create a larger dataset (that is a multiple of the original dataset). In this case, I will assume that the new study will have <code>225</code> patients, which is a <code>5</code> fold increase in subjects compared to the NONMEM input.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="co"># first create the base event table with the nubmer of individuals</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="co"># matching the NONMEM dataset:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a>ev &lt;-<span class="st"> </span><span class="kw">et</span>(<span class="dt">amt=</span><span class="dv">410</span>, <span class="dt">ii=</span><span class="dv">20</span><span class="op">*</span><span class="dv">24</span>, <span class="dt">until=</span><span class="dv">365</span><span class="op">*</span><span class="dv">24</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Add dosing 20 days apart for a year</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a><span class="st">  </span><span class="kw">et</span>(<span class="kw">seq</span>(<span class="dv">0</span>, <span class="dv">365</span><span class="op">*</span><span class="dv">24</span>, <span class="dt">by=</span><span class="dv">7</span><span class="op">*</span><span class="dv">24</span>)) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Assume weekly observations</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a><span class="st">  </span><span class="kw">et</span>(<span class="dt">id=</span><span class="kw">seq</span>(<span class="dv">1</span>, <span class="kw">max</span>(wbc<span class="op">$</span>nonmemData<span class="op">$</span>ID)<span class="op">*</span><span class="dv">5</span>)) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># Match the number of subjects modeled</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a><span class="st">  </span>as.data.frame <span class="co"># convert to data.frame</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true"></a><span class="co"># Now create the PK covariates</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true"></a><span class="kw">library</span>(dplyr)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true"></a>pkCov &lt;-<span class="st"> </span>wbc<span class="op">$</span>nonmemData <span class="op">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true"></a><span class="st">  </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">duplicated</span>(ID)) <span class="op">%&gt;%</span><span class="st"> </span><span class="co"># only get one observation per id</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true"></a><span class="st">  </span><span class="kw">select</span>(CLI, V1I, V2I) <span class="co"># select the covariates</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true"></a><span class="co"># expand the covariates by 5</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true"></a>pkCov &lt;-<span class="st"> </span><span class="kw">do.call</span>(<span class="st">&quot;rbind&quot;</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true"></a>                 <span class="kw">lapply</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>, <span class="cf">function</span>(i) {</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true"></a>                   pkCov</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true"></a>                 }))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true"></a>pkCov<span class="op">$</span>id &lt;-<span class="st"> </span><span class="kw">seq_along</span>(pkCov<span class="op">$</span>CLI) <span class="co"># add the covariates per id</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true"></a><span class="co"># Then merge the PK covariates to the original event table</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true"></a>ev &lt;-<span class="st"> </span><span class="kw">merge</span>(pkCov, ev)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true"></a><span class="co"># Last simulate with replacement with the new data frame</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true"></a>sim &lt;-<span class="st"> </span><span class="kw">rxSolve</span>(wbc, ev, <span class="dt">resample=</span><span class="ot">TRUE</span>, <span class="dt">nStud=</span><span class="dv">100</span>)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true"></a><span class="co">#&gt; ℹ using nocb interpolation like NONMEM, specify directly to change</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true"></a><span class="co">#&gt; ℹ using safeZero=FALSE since NONMEM does not use protection by default</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfSub=45 from NONMEM</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true"></a><span class="co">#&gt; ℹ using dfObs=176 from NONMEM</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true"></a><span class="co">#&gt; ℹ using thetaMat from NONMEM</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true"></a><span class="co">#&gt; ℹ using sigma from NONMEM</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified atol=1e-12</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified rtol=1e-06</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssRtol=1e-06</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true"></a><span class="co">#&gt; ℹ using NONMEM specified ssAtol=1e-12</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true"></a><span class="co">#&gt; ℹ thetaMat has too many items, ignored: &#39;omega.2.1&#39;, &#39;omega.3.1&#39;, &#39;omega.3.2&#39;</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true"></a><span class="co">#&gt; [====|====|====|====|====|====|====|====|====|====] 0:02:20</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true"></a><span class="co">#&gt; Warning: corrected &#39;thetaMat&#39; to be a symmetric, positive definite matrix</span></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true"></a></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true"></a>ci &lt;-<span class="st"> </span><span class="kw">confint</span>(sim, <span class="st">&quot;y&quot;</span>)</span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true"></a><span class="co">#&gt; summarizing data...</span></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true"></a><span class="co">#&gt; done</span></span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true"></a></span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true"></a><span class="kw">plot</span>(ci)</span></code></pre></div>
+<p><img src="data:image/png;base64,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37A0fA8dqSRnxVAoxPO8zWaTtxUnJjxLlypcg1ULpZsH27Dhqg0brirZ5SoQuWAwDGtvb29vbwcABAKBgYGBvr4+6Cfh9/ufffbZ1atXX3fddVqttpJlBsEwzOVyTU1NwR5mNBplGMbhcMgDOizaybFq9UWsXjIFA32LV69evXv37gMHDsBe8ccffzwwMHDzzTf39PTIz/+P/7iv5EXOTubCFp/PB+sxhmGmpqbsdrt8PnBxUk0TvrVEZo2kVqs3btz4zW9+s6GhAe6JxWIvvvjiq6++KvcqfuCBn5askHMir5RgCG5pEJjn+enpaYo6n/t8cc4+I4GVjayeHE1NTbfffvu1114rta+OHTv28MMP79y5U3K0feihx0pZzvzBMKy+vt5ut0sdMJ/Px3HnIwQvQo0hgZWZbeeQ9uA4fsUVV9xxxx2trTMzfizLfvjhh4888sh///d/wxGRBx74SVlKm0lmz8poNDY0NEB3KkEQIhFK8vkAi09jSGCVQprS7Hb717/+9Y0bN0rdGJ7nP/744yee+PWBA4cEQaicYQ+3250mM41G43Q6YT0miqLfH5JHul9UGkMCqzgkmWEYtn79+u985zs33HCD2WyGR3mef++9vmeeedbn81WUu3CazLRardRW5Hne6/UuTo0hgVUoknLUavVll1125513bt68WRpCmJyc/PWvf713795UKlVpMpO2DQaDzTYz/cUwjMfjWYRtRSSwykWuHIIgVq1a9c///M+XXHIJ3MPz/J49ex5++OG+vj4os3KVMw25xsxms14/kxIplUpJ6zUhi0FjaB6s0kmLg7B58z90d7e//fY7MNZVIpF466239u3bd+WVV95///0EUXHxP/R6DUlqIpEYAIDneY/H43A4pI5lzU9Aoxqsmti2bdv993/f7W7/9rfv2LBhgxQ+LZFI/PWvf3388ccHBwcrQWBpmjEaDVIGCUEQpqen5ZHwarseQzVY9fG97/3r44+/cN11111xxRUffPDBgQMHoI9SIBDYvn17Z2en3++HD3QZxQY1JonHaDQSBOH1eqGfSiAQ4DhO6qHVcD2GarCq5P77f7Bt2za9Xn/ttdfeeeeda9euleZ2h4aGnnjiibfffpum6bKPf8hlo9PpGhsbpQn0SCQiDzdQq/UYElgVA/VjNBpvvvnmO+64A7oOAwB4nv/ggw8effTR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DVc7GIZdc801J0+eHBgYuOyyy+Q9IkEQBgYG/vEf/9Fms9177739/f3FLozb7e7u7rbZbC0tLVarVfJWE0UxHo97PJ7JyclYLFaCdmPtCyzz9uV4eyGZLZyurq6+vr5YLPbee++tX79eCgcAAEgkEg8++ODy5cvr6uruuuuu999/v6jDIW63u6ury2q1trS02Gw2uVMoy7JwFMTr9SYSiaGhoSL97pXlKjUnLCtmBkLJuhRvIfcrx99KV5GfU3WrAEsAQRBXXnnl/v37x8dPHDly+ne/e/mll16S/BtDodAjjzzyyCOPWCyWr33ta1u2bLnqqquK5BUthbIym80URUWjUSkMI5ykTiaTGIZpNJpIJIJhfHu7kl6pleXsm5uBgePT077mZmWXJwCWpViWMhrn7caaRprMvN7JEycOX3HFdSSpVnA1LstSgcCo3d6hrC8iw1B9fbtXrFhrt7sUNAsAmJo6ZTY7DQZbKBR64YUXfvazn01NTWWeptPpvvzlL2/ZsuX666+XNy9nY//+3U5nU2dn77wKA3+IVCoVj8fj8bg8J6AEQeAmk7m3tzefYswJEphiApOAQvJ6J48fP9bW1onj2V/MhemtegUm7RkaGnrttdcefvjh8fHxzMfPYDBs3Lhxy5Yt1157bUNDw2xmCxOYHOiMkkgkkslkVk8UjUZjNBoNBkNXV1fBV0ECU15gkEQi5vN5cghMTv5iqwGBSUxPT//pT3967bXX3nrrrayVyUUXXXT11VdfffXVV155pRQSC7JwgUkIgnDq1CmKomiaZlk2TRGw9ajX63t7e+UuI3lSZX2wWmW2Xl9t9+5cLtftt99+++23x2KxN998849//OMbb7whTx12/Pjx48ePP/roowCAZcuWXXnllVdeeeVVV13V0dGhYDFwHF+2bBncPnbsME2naJqVZhREUaRpmqbpYDDY2Djv7hkSWEVTpaGU5ovJZNq6devWrVsZhtm1a9eOHTteeuklGFtOor+/H7oXAwBaW1svuqjns5/97E03bb7ooovkLr8LpLGxniBUVmtTLBY7ffp0IpGAVSuGYWlVaJ6gJmJFNBHzxO1211ITMTcDAwO7d+/evXv33r17PR7PbKdptdpLLrlkzZo169evX79+vXymuwACgVEoMGlPNBr1+/2BQOAzn/lMAQYXi8B4nmcYhiTJzLddFQkM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" /><!-- --></p>
+</div>
+<div id="other-options" class="section level2">
+<h2>Other options</h2>
+<p>You can also simulation without uncertainty and use covariates by resampling by hand (or even simulating new covariates manually).</p>
+<p>I believe that reampling keeps any hidden correlations between covariates, and should be used whenever possible. At the time of this writing, resampling can only occur when the new event table is a multiple of the input dataest. Eventually a feature may be added to resample from an input dataset directly.</p>
+<p>Note that resampling will also work with time-varying covariates. The time-varying covariates would be imputed based on the input times per subject.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
