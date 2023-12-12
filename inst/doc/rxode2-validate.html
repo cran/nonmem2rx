@@ -364,7 +364,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true"></a><span class="co"># version of `babelmixr2`, you can simply point to the listing file</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true"></a></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true"></a>mod &lt;-<span class="st"> </span><span class="kw">nonmem2rx</span>(ctlFile, <span class="dt">lst=</span><span class="st">&quot;.res&quot;</span>, <span class="dt">save=</span><span class="ot">FALSE</span>, <span class="dt">determineError=</span><span class="ot">FALSE</span>)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a><span class="co">#&gt; ℹ getting information from  &#39;/tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/mods/cpt/runODE032.ctl&#39;</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true"></a><span class="co">#&gt; ℹ getting information from  &#39;/tmp/RtmppduNoF/Rinst17e41f60bee3/nonmem2rx/mods/cpt/runODE032.ctl&#39;</span></span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true"></a><span class="co">#&gt; ℹ reading in xml file</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true"></a><span class="co">#&gt; ℹ reading in phi file</span></span>
@@ -400,25 +400,26 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <span id="cb1-42"><a href="#cb1-42" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta2` to `0.0993872449483344`</span></span>
 <span id="cb1-43"><a href="#cb1-43" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta3` to `0.101302674763154`</span></span>
 <span id="cb1-44"><a href="#cb1-44" aria-hidden="true"></a><span class="co">#&gt; ℹ change initial estimate of `eta4` to `0.0730497519364148`</span></span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem input data (for model validation): /tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/mods/cpt/Bolus_2CPT.csv</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem input data (for model validation): /tmp/RtmppduNoF/Rinst17e41f60bee3/nonmem2rx/mods/cpt/Bolus_2CPT.csv</span></span>
 <span id="cb1-46"><a href="#cb1-46" aria-hidden="true"></a><span class="co">#&gt; ℹ ignoring lines that begin with a letter (IGNORE=@)&#39;</span></span>
 <span id="cb1-47"><a href="#cb1-47" aria-hidden="true"></a><span class="co">#&gt; ℹ applying names specified by $INPUT</span></span>
 <span id="cb1-48"><a href="#cb1-48" aria-hidden="true"></a><span class="co">#&gt; ℹ subsetting accept/ignore filters code: .data[-which((.data$SD == 0)),]</span></span>
 <span id="cb1-49"><a href="#cb1-49" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem IPRED data (for model validation): /tmp/RtmpTDyhzd/Rinst45f6fcdf3b4/nonmem2rx/mods/cpt/runODE032.csv</span></span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true"></a><span class="co">#&gt; ℹ changing most variables to lower case</span></span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true"></a><span class="co">#&gt; ℹ replace theta names</span></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true"></a><span class="co">#&gt; ℹ replace eta names</span></span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true"></a><span class="co">#&gt; ℹ done (no labels)</span></span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true"></a><span class="co">#&gt; ℹ renaming compartments</span></span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true"></a><span class="co">#&gt; ℹ solving ipred problem</span></span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true"></a><span class="co">#&gt; ℹ solving pred problem</span></span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span></code></pre></div>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true"></a><span class="co">#&gt; using C compiler: ‘gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0’</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true"></a><span class="co">#&gt; ℹ read in nonmem IPRED data (for model validation): /tmp/RtmppduNoF/Rinst17e41f60bee3/nonmem2rx/mods/cpt/runODE032.csv</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true"></a><span class="co">#&gt; ℹ changing most variables to lower case</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true"></a><span class="co">#&gt; ℹ replace theta names</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true"></a><span class="co">#&gt; ℹ replace eta names</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true"></a><span class="co">#&gt; ℹ done (no labels)</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true"></a><span class="co">#&gt; ℹ renaming compartments</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true"></a><span class="co">#&gt; ℹ solving ipred problem</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true"></a><span class="co">#&gt; ℹ solving pred problem</span></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true"></a><span class="co">#&gt; ℹ done</span></span></code></pre></div>
 <div id="comparing-differences-between-nonmem-and-rxode2" class="section level3">
 <h3>Comparing differences between <code>NONMEM</code> and <code>rxode2</code></h3>
 <p>You may wish to see where the differences in predictions are between NONMEM and rxode2.</p>

@@ -36,39 +36,77 @@ rxSolve.nonmem2rx <- function(object, params = NULL, events = NULL,
         rate2 = TRUE, dur2 = TRUE), resample = NULL, resampleID = TRUE, 
     maxwhile = 1e+05, atolSens = 1e-08, rtolSens = 1e-06, ssAtolSens = 1e-08, 
     ssRtolSens = 1e-06, simVariability = NA, nLlikAlloc = NULL, 
-    useStdPow = FALSE) {
+    useStdPow = FALSE, naTimeHandle = c("ignore", "warn", "error"), 
+    addlKeepsCov = FALSE, addlDropSs = TRUE, ssAtDoseTime = TRUE, 
+    ss2cancelAllPending = FALSE, envir = parent.frame()) {
+    if (missing(cores)) {
+        cores <- 0L
+    }
     if (missing(covsInterpolation)) {
         covsInterpolation <- "nocb"
         .minfo("using nocb interpolation like NONMEM, specify directly to change")
     }
+    if (missing(addlKeepsCov)) {
+        .minfo("using addlKeepsCov=TRUE like NONMEM, specify directly to change")
+        addlKeepsCov <- TRUE
+    }
+    if (missing(addlDropSs)) {
+        .minfo("using addlDropSs=TRUE like NONMEM, specify directly to change")
+        addlDropSs <- TRUE
+    }
+    if (missing(ssAtDoseTime)) {
+        .minfo("using ssAtDoseTime=TRUE like NONMEM, specify directly to change")
+        ssAtDoseTime <- TRUE
+    }
     if (missing(safeZero)) {
         .minfo("using safeZero=FALSE since NONMEM does not use protection by default")
-        safeZero = TRUE
+        safeZero <- TRUE
+    }
+    if (missing(ss2cancelAllPending)) {
+        .minfo("using ss2cancelAllPending=FALSE since NONMEM does not cancel pending doses with SS=2")
+        ss2cancelAllPending <- FALSE
     }
     if (!missing(nStud)) {
         if (missing(dfSub)) {
-            if (!is.null(object$dfSub)) {
+            if (!is.null(object$meta$dfSub)) {
+                dfSub <- object$meta$dfSub
+                .minfo(paste0("using dfSub=", dfSub, " from NONMEM"))
+            }
+            else if (!is.null(object$dfSub)) {
                 dfSub <- object$dfSub
                 .minfo(paste0("using dfSub=", dfSub, " from NONMEM"))
             }
         }
         if (missing(dfObs)) {
-            if (!is.null(object$dfObs)) {
+            if (!is.null(object$meta$dfObs)) {
+                dfObs <- object$meta$dfObs
+                .minfo(paste0("using dfObs=", dfObs, " from NONMEM"))
+            }
+            else if (!is.null(object$dfObs)) {
                 dfObs <- object$dfObs
+                dfObs <- object$meta$dfObs
                 .minfo(paste0("using dfObs=", dfObs, " from NONMEM"))
             }
         }
         if (missing(thetaMat)) {
-            if (!is.null(object$thetaMat)) {
-                thetaMat <- object$thetaMat
+            if (!is.null(object$meta$thetaMat)) {
+                thetaMat <- object$meta$thetaMat
+                .minfo(paste0("using thetaMat from NONMEM"))
+            }
+            else if (!is.null(object$thetaMat)) {
+                thetaMat <- object$meta$thetaMat
                 .minfo(paste0("using thetaMat from NONMEM"))
             }
         }
     }
     if (missing(sigma)) {
         if (is.null(object$predDf)) {
-            if (!is.null(object$sigma)) {
-                sigma <- object$sigma
+            if (!is.null(object$meta$sigma)) {
+                sigma <- object$meta$sigma
+                .minfo(paste0("using sigma from NONMEM"))
+            }
+            else if (!is.null(object$sigma)) {
+                sigma <- object$meta$sigma
                 .minfo(paste0("using sigma from NONMEM"))
             }
         }
@@ -80,20 +118,44 @@ rxSolve.nonmem2rx <- function(object, params = NULL, events = NULL,
         }
     }
     if (missing(atol)) {
-        atol <- object$atol
-        .minfo(paste0("using NONMEM specified atol=", atol))
+        if (!is.null(object$meta$atol)) {
+            atol <- object$meta$atol
+            .minfo(paste0("using NONMEM specified atol=", atol))
+        }
+        else if (!is.null(object$atol)) {
+            atol <- object$atol
+            .minfo(paste0("using NONMEM specified atol=", atol))
+        }
     }
     if (missing(rtol)) {
-        rtol <- object$rtol
-        .minfo(paste0("using NONMEM specified rtol=", rtol))
+        if (!is.null(object$meta$atol)) {
+            rtol <- object$meta$rtol
+            .minfo(paste0("using NONMEM specified rtol=", rtol))
+        }
+        else if (!is.null(object$atol)) {
+            rtol <- object$rtol
+            .minfo(paste0("using NONMEM specified rtol=", rtol))
+        }
     }
     if (missing(ssRtol)) {
-        ssRtol <- object$ssRtol
-        .minfo(paste0("using NONMEM specified ssRtol=", ssRtol))
+        if (!is.null(object$meta$ssRtol)) {
+            ssRtol <- object$meta$ssRtol
+            .minfo(paste0("using NONMEM specified ssRtol=", ssRtol))
+        }
+        else if (!is.null(object$meta$ssRtol)) {
+            ssRtol <- object$meta$ssRtol
+            .minfo(paste0("using NONMEM specified ssRtol=", ssRtol))
+        }
     }
     if (missing(ssAtol)) {
-        ssAtol <- object$ssAtol
-        .minfo(paste0("using NONMEM specified ssAtol=", ssAtol))
+        if (!is.null(object$meta$ssAtol)) {
+            ssAtol <- object$meta$ssAtol
+            .minfo(paste0("using NONMEM specified ssAtol=", ssAtol))
+        }
+        else if (!is.null(object$ssAtol)) {
+            ssAtol <- object$ssAtol
+            .minfo(paste0("using NONMEM specified ssAtol=", ssAtol))
+        }
     }
     .cls <- class(object)
     class(object) <- .cls[-which(.cls == "nonmem2rx")]
@@ -128,5 +190,7 @@ rxSolve.nonmem2rx <- function(object, params = NULL, events = NULL,
         resampleID = resampleID, maxwhile = maxwhile, atolSens = atolSens, 
         rtolSens = rtolSens, ssAtolSens = ssAtolSens, ssRtolSens = ssRtolSens, 
         simVariability = simVariability, nLlikAlloc = nLlikAlloc, 
-        useStdPow = useStdPow)
+        useStdPow = useStdPow, naTimeHandle = naTimeHandle, addlKeepsCov = addlKeepsCov, 
+        addlDropSs = addlDropSs, ssAtDoseTime = ssAtDoseTime, 
+        ss2cancelAllPending = ss2cancelAllPending, envir = envir)
 }
