@@ -14,11 +14,15 @@
     sub="sub", # $subroutines
     abb="abb", # $abbrevited
     pre="pre", # $pred
-    the="the", # $theta
+    the="the", # $heta
     thetap="thetap", #thetap
     thetapv="thetapv", # thetapv
     ome="ome", # $omega
+    omegap="omegap", #omegap
+    omegapd="omegapd", # omegapd
     sig="sig", # $sigma
+    sigmap="sigmap", #sigmap
+    sigmapd="sigmapd", # sigmapd
     msf="msf", # $msfi
     sim="sim", # $simulation
     est="est", # $estimation
@@ -47,11 +51,15 @@
     sub="$SUBROUTINES", # $subroutines
     abb="$ABBREVITED", # $abbrevited
     pre="$PRED", # $pred
-    the="$THETA", # $theta
+    the="$gTHETA", # $theta
     thetap="$THETAP", # $thetap
     thetapv="$THETAPV", # $thetapv
     ome="$OMEGA", # $omega
+    omegap="$OMEGAP", # $omegap
+    omegapd="$OMEGAPD", # $omegapd
     sig="$SIGMA", # $sigma
+    sigmap="$SIGMAP", # $sigmap
+    sigmapd="$SIGMAPD", # $sigmapd
     msf="$MSFI", # $msfi
     mix="$MIX",
     sim="$SIMULATION", # $simulation
@@ -87,9 +95,9 @@
   .rec <- tolower(rec)
   .ret <- .transRecords[.rec]
   if (is.na(.ret)) {
-    if (.rec == "thetap") {
-      .ret <- .transRecords[.rec]
-    } else if (.rec == "thetapv") {
+    if (.rec %in% c("thetap", "thetapv",
+                    "omegap", "omegapd",
+                    "sigmap", "sigmapd")) {
       .ret <- .transRecords[.rec]
     } else {
       .rec0 <- substr(.rec, 1, 3)
@@ -174,7 +182,10 @@
   .clearRecordEnv()
   .minfo("splitting control stream by records")
   .recs <- strsplit(ctl, "(^|\\n) *[$]")[[1]]
-
+  if (length(.recs) == 1L && is.na(.recs)) {
+    stop("problem splitting control stream by records",
+         call.=FALSE)
+  }
   .addRec("aaa", .recs[1])
   lapply(.recs[-1], function(r) {
     .m <- regexpr("^ *[A-Za-z]+", r)
