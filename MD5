@@ -1,6 +1,6 @@
-46cec104c9f7d22ba10445ca2c50f08e *DESCRIPTION
+0d14a6c577fcbd56e9352dff04799644 *DESCRIPTION
 78b7a4ff1404780ed43bad4d69552e75 *NAMESPACE
-4012ced89bf0d961bdcd2fdc7134db7c *NEWS.md
+8cb468231e71c1d099307ce828b3b976 *NEWS.md
 5aa0594feccf9e3c6ef0ca09cdc37ccb *R/RcppExports.R
 bf08d487c45e19073d9aec2a8a7edf0f *R/abbrec.R
 e119281f3899f9bd89f46f4b7e2c893d *R/abbrev.R
@@ -19,7 +19,7 @@ c7af41f6f0f19df75f99e48e7e69065b *R/input.R
 56f39024a2886906de8b02a3566d0d6e *R/nlme.R
 a2353f3fe41a92d274df0bae9ee49084 *R/nminfo.R
 c0106e7d868d929631739a6b1523b482 *R/nmtab.R
-783163a8fb18bb1cbd3e830dcb54e02c *R/nonmem2rx.R
+5cd62f6e9c3ea2534a486fbf212a622f *R/nonmem2rx.R
 3ab2239c777c71237cd046707053deef *R/omega.R
 c2901f35bfd9c8835bfa6901673fc3dc *R/plot.R
 0905b153e058d6776f41712620f58a06 *R/print.R
@@ -39,15 +39,15 @@ a1e7e47c322088960ff6bb14596d4711 *R/sub.R
 bcee953779095503fe61cdb8c0538591 *R/xml.R
 7a6cc15c3b30fc60e8283cb1ab7a7ba4 *R/zzz.R
 62a1c2dd80eb33492fba63804f427bde *README.md
-659b1ca51526981cc8d57afc48281cb2 *build/vignette.rds
+e5a79d8d60196590ce333cfde8762bb0 *build/vignette.rds
 ec46e2e11bcdbf7a81e0d39b772a9e8d *inst/Theopd.ctl
 ebad8cf4c3470aabef92a11271da3324 *inst/TheopdExt.ctl
-92ac9a9424d5fc8f3cd9bfef23de1fb2 *inst/abbrec.g
+0bf91442d9324c8542c3d541a42add7c *inst/abbrec.g
 879dfa9a310593dc2a42a4b5b09c5116 *inst/abbrev.g
 87411d541e95e7894a05546bcd1b9b07 *inst/data.g
 e6e613f144da27e11cd3143e1cacabbb *inst/doc/import-nonmem.R
 04a437cc0a2bf9697435a66fd79a7b9d *inst/doc/import-nonmem.Rmd
-85be986cb3b4c25289955c0f0796bf72 *inst/doc/import-nonmem.html
+9f9295f6f3680f45a8ce7bdcb25c45f0 *inst/doc/import-nonmem.html
 d71f0872bd406e44ab6ec6b4772d2954 *inst/input.g
 24fe51beaac29c95b7a2f7ad0cc14658 *inst/lst.g
 7630966f46a07acee24bae56eba2d5a5 *inst/model.g
@@ -204,7 +204,7 @@ bf4bffd17e477b938d806982ca30a39e *man/nonmem2rxRec.Rd
 98803ba5a0f95b917e7fb53992824f79 *man/reexports.Rd
 ac2ddff9b789e1c0518cd03e98c98632 *src/RcppExports.cpp
 9fd0f0129f4cc93abe734133ebc8682d *src/abbrec.c
-71c0e10ff2c3869bafd7eb8e88eb1fa4 *src/abbrec.g.d_parser.h
+a074afd7104c2c8461792cc45c8766ea *src/abbrec.g.d_parser.h
 01b8b6227253898aa875dfcfa77de5d2 *src/abbrev.c
 1e3288b4c836a5a429180232fc1f9fda *src/abbrev.g.d_parser.h
 07a4be498bc4c24d31f73170d91fa685 *src/data.c
@@ -247,7 +247,7 @@ e9b39d9414180d9833dd23e574e4bf2c *tests/testthat/_snaps/vdiff/first-plot.svg
 11b3fee12bc0f160fc94ea18c0956e51 *tests/testthat/_snaps/vdiff/second-pred-plot.svg
 73192e56595fe6750f73731fa0e750b5 *tests/testthat/issue-144.xml
 7ae64374c4eea5dd515c602a65401318 *tests/testthat/test-abbrec.R
-8f699fd973a854d0ac8033b4ced93686 *tests/testthat/test-abbrev.R
+f6daa222b9c7ae2bcea2acf48dbc8ae5 *tests/testthat/test-abbrev.R
 e819fa40566bb294e5965320e9a0bc9c *tests/testthat/test-advan5.R
 726a7ae7d5fb27e3e18c54653d59350c *tests/testthat/test-as-nonmem2rx.R
 6de0ac900139ec9ac07f8cca896bf649 *tests/testthat/test-data.R

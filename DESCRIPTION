@@ -1,7 +1,7 @@
 Package: nonmem2rx
 Type: Package
-Title: 'nonmem2rx' Converts 'NONMEM' Models to 'rxode2'
-Version: 0.1.5
+Title: Converts 'NONMEM' Models to 'rxode2'
+Version: 0.1.6
 Maintainer: Matthew Fidler <matthew.fidler@gmail.com>
 Authors@R: c(person("Matthew","Fidler", role = c("aut", "cre"), email = "matthew.fidler@gmail.com", comment=c(ORCID="0000-0001-8538-6691")),
     person("Philip", "Delff", email = "philip@delff.dk",role = c("ctb")),
@@ -39,9 +39,9 @@ RoxygenNote: 7.3.2
 VignetteBuilder: knitr
 Language: en-US
 NeedsCompilation: yes
-Packaged: 2024-09-18 15:30:32 UTC; matt
+Packaged: 2024-11-28 18:58:34 UTC; matt
 Author: Matthew Fidler [aut, cre] (<https://orcid.org/0000-0001-8538-6691>),
   Philip Delff [ctb],
   Gabriel Staples [ctb] (string insensitive compare)
 Repository: CRAN
-Date/Publication: 2024-09-18 16:10:02 UTC
+Date/Publication: 2024-11-28 19:30:02 UTC
