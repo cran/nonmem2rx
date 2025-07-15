@@ -1,3 +1,8 @@
+# nonmem2rx 0.1.7
+
+* Added `$ERROR (ONLY OBS)` support
+* `if` statements can be upper or lower case #196
+
 # nonmem2rx 0.1.6
 
 * Add more flexible replacement of ETA and other values #188
