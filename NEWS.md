@@ -1,3 +1,9 @@
+# nonmem2rx 0.1.9
+
+* Try to make sure all the values that can be numeric are numeric #208
+
+* Use qs2 since qs is being archived
+
 # nonmem2rx 0.1.8
 
 * Better handling of `ytype`
