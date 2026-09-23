@@ -63,8 +63,8 @@ test_that("test abbrev", {
   expect_error(.a(" CL      = INT(C)"), "'INT'")
   expect_error(.a("CL = A12345"), "'A#'")
   expect_error(.a("CL = C12345"), "'C#'")
-  .a("A = MIXNUM", "A <- MIXNUM")
-  .a("A = MIXEST", "A <- MIXNUM")
+  .a("A = MIXNUM", "A <- NMMIXNUM")
+  .a("A = MIXEST", "A <- NMMIXNUM")
   expect_warning(.a("A = ICALL", "A <- icall"), "icall")
   expect_error(.a("A = COMACT"), "'COMACT'")
   expect_error(.a("A = COMSAV"), "'COMSAV'")
@@ -106,7 +106,19 @@ test_that("test abbrev", {
   .a("C=MTIME(3)", "C <- rx.mtime.3.")
   expect_error(.a("C=MNEXT(3)"), "MNEXT\\(#\\)")
   .a("C=MPAST(3)", "C <- rx.mpast.3.")
-  expect_error(.a("C=COM(3)"), "COM\\(#\\)")
+  .a("C=COM(3)", "C <- rxCOM_3_")
+  .a("C=COM(1)", "C <- rxCOM_1_")
+  .a("C=com(3)", "C <- rxCOM_3_")
+  # COM(#) assignment; COM array is a NONMEM communication variable that
+  # retains its value from record to record, translated to a rxode2 sticky
+  # variable (issue #228)
+  .a("COM(1)=-1", "rxCOM_1_ <-  - 1")
+  .a("com(2)=CL*V", "rxCOM_2_ <- CL * V")
+  .a("COM(2)=COM(2)+1", "rxCOM_2_ <- rxCOM_2_ + 1")
+  .a("IF(NEWIND.LE.1) THEN\nCOM(1)=-1\nCOM(2)=-1\nENDIF",
+     c("if (newind <= 1) {", "rxCOM_1_ <-  - 1", "rxCOM_2_ <-  - 1", "}"))
+  .a("IF(NEWIND.LE.1) COM(1)=-1",
+     c("if (newind <= 1) {", "rxCOM_1_ <-  - 1", "}"))
   expect_error(.a("C=PCMT(3)"), "PCMT\\(#\\)")
 
   .a("C=MIXP(3)", "C <- rxp.3.")
@@ -430,5 +442,63 @@ test_that("abbrev #190", {
   $TABLE ID TIME DV CIPREDI PRED RES CWRES NOAPPEND NOPRINT ONEHEADER FILE=res.tab"
 
   expect_error(nonmem2rx(m), NA)
+
+})
+
+test_that("DDE delayed states AD_x_y translate to delay()", {
+
+  .a <- function(abbrev, eq="no", abbrevLin=0L, extended=0L) {
+    .clearNonmem2rx()
+    .Call(`_nonmem2rx_setRecord`, "$DES")
+    .Call(`_nonmem2rx_trans_abbrev`, abbrev, '$DES', abbrevLin, extended)
+    expect_equal(.nonmem2rx$model, eq)
+  }
+
+  # linear DDE: dA/dt = -k*A(t-tau)
+  .a("DADT(1)=-K*AD_1_1",
+     "d/dt(rxddta1) <-  - K * delay(rxddta1, TAU1)")
+
+  # delayed logistic growth (Yan et al. Appendix 4)
+  .a("DADT(1)=KG*(1.0-AD_1_1/YSS)*A(1)",
+     "d/dt(rxddta1) <- KG * (1.0 - delay(rxddta1, TAU1) / YSS) * rxddta1")
+
+  # multiple delayed states, shared delay TAU1 (lifespan TGI, Appendix 6)
+  .a("CCDEL=AD_2_1/V\nDADT(4)=KPOT*CC*A(3)-KPOT*CCDEL*AD_3_1",
+     c("CCDEL <- delay(rxddta2, TAU1) / V",
+       "d/dt(rxddta4) <- KPOT * CC * rxddta3 - KPOT * CCDEL * delay(rxddta3, TAU1)"))
+
+  # multi-digit state and delay indices
+  .a("DADT(2)=K12*AD_10_2",
+     "d/dt(rxddta2) <- K12 * delay(rxddta10, TAU2)")
+
+})
+
+test_that("DDE past histories AP_x_y translate to past()", {
+
+  .a <- function(abbrev, eq="no", abbrevLin=0L, extended=0L) {
+    .clearNonmem2rx()
+    .Call(`_nonmem2rx_setRecord`, "$DES")
+    .Call(`_nonmem2rx_trans_abbrev`, abbrev, '$DES', abbrevLin, extended)
+    expect_equal(.nonmem2rx$model, eq)
+  }
+
+  # constant history
+  .a("AP_1_1=Y0", "past(rxddta1, TAU1) <- Y0")
+
+  # zero histories on multiple states (lifespan TGI, Appendix 6)
+  .a("AP_2_1=0\nAP_3_1=0",
+     c("past(rxddta2, TAU1) <- 0", "past(rxddta3, TAU1) <- 0"))
+
+  # non-constant history, NONMEM T -> rxode2 t (rheumatoid arthritis, Appendix 7)
+  .a("AP_1_1=AA*EXP(BB*T)", "past(rxddta1, TAU1) <- AA * exp(BB * t)")
+
+  # parameter-valued history (PDLIDR, Appendix 11)
+  .a("AP_2_1=K0/K1", "past(rxddta2, TAU1) <- K0 / K1")
+
+  # past() and delay() together (RA-style $DES)
+  .a("AP_1_1=AA*EXP(BB*T)\nDADT(1)=K3-KG*A(1)\nDADT(2)=K4*A(1)-K4*AD_1_1",
+     c("past(rxddta1, TAU1) <- AA * exp(BB * t)",
+       "d/dt(rxddta1) <- K3 - KG * rxddta1",
+       "d/dt(rxddta2) <- K4 * rxddta1 - K4 * delay(rxddta1, TAU1)"))
 
 })

@@ -2,7 +2,7 @@
 % Please edit documentation in R/nonmem2rx.R
 \name{nonmem2rx}
 \alias{nonmem2rx}
-\title{Convert a NONMEM source file to a rxode model (nlmixr2-syle)}
+\title{Convert a NONMEM source file to a rxode model (nlmixr2-style)}
 \usage{
 nonmem2rx(
   file,
@@ -20,6 +20,7 @@ nonmem2rx(
   strictLst = FALSE,
   unintFixed = FALSE,
   extended = getOption("nonmem2rx.extended", FALSE),
+  matexp = getOption("nonmem2rx.matexp", TRUE),
   nLinesPro = 20L,
   delta = 1e-04,
   usePhi = TRUE,
@@ -47,15 +48,27 @@ nonmem2rx(
 \item{file}{NONMEM run file, like an \code{.xml} or \code{.lst} file or even
 a control stream}
 
-\item{inputData}{this is a path to the input dataset (or \code{NULL} to
-determine from the dataset).  Often the input dataset may be
-different from the place it points to in the control stream
-because directories can be created to run NONMEM from a script.
-Because of this, when this is specified the input data will be
-assumed to be from here instead.}
+\item{inputData}{this is the input dataset used for validation.  It
+can be:
+\itemize{
+\item \code{NULL} (default) to determine the dataset from the \verb{$DATA} record
+in the control stream
+\item a path to the input dataset (as a character string).  Often the
+input dataset may be different from the place it points to in the
+control stream because directories can be created to run NONMEM
+from a script.  Because of this, when this is specified the input
+data will be assumed to be from here instead.
+\item a \code{data.frame} of the already read-in NONMEM input dataset.  This
+is useful when you want to import a model from a different system,
+have the data to check it against, but the file paths in the
+control stream do not match.  The columns are assumed to be in the
+same order as the \verb{$INPUT} record (just as if it were read from
+the file), and the \verb{$INPUT} names, \code{DROP}, \code{IGNORE}/\code{ACCEPT}
+filters and record subsetting are applied.
+}}
 
 \item{nonmemOutputDir}{This is a path the the nonmem output
-directory.  When not \code{NULL} it will assume that the diretory for
+directory.  When not \code{NULL} it will assume that the directory for
 the output files is located here instead of where the control
 stream currently exists.}
 
@@ -111,6 +124,13 @@ successful load (default \code{FALSE}).}
 \item{extended}{Translate extended control streams from tools like
 wings for NONMEM}
 
+\item{matexp}{For \code{ADVAN5}/\code{ADVAN7} general linear models (which NONMEM
+itself solves with matrix exponentials), translate the linear system to
+rxode2's native matrix-exponential \code{matExp()} model (default \code{TRUE}).
+Set \code{matexp=FALSE} to instead use the explicit \code{d/dt()} ODE translation.
+Other model types are unaffected.  If the installed rxode2 does not
+support \code{matExp()}, the ODE translation is used with a warning.}
+
 \item{nLinesPro}{The number of lines to check for the $PROBLEM
 statement.}
 
@@ -154,12 +174,12 @@ information}
 \itemize{
 \item a \code{NULL} (meaning don't save),
 \item a logical (default \code{FALSE}, don't save) that when \code{TRUE} will use
-the base name of the control stream, append \code{.qs} and save the file
-using \code{qs2::qs_save()}
+the base name of the control stream, append \code{.rds} and save the file
+using \code{saveRDS()}
 \item A path to a file to write
 
-Note that this file will be saved with qs2::qs_save() and can be
-loaded with qs2::qs_read()
+Note that this file will be saved with saveRDS() and can be
+loaded with readRDS()
 \item A \code{NA} value which means save if the whole process (including
 validation) takes too much time
 }}
@@ -194,7 +214,7 @@ options that are imported from NONMEM to keep in the model.}
 rxode2 function
 }
 \description{
-Convert a NONMEM source file to a rxode model (nlmixr2-syle)
+Convert a NONMEM source file to a rxode model (nlmixr2-style)
 }
 \details{
 Since some of these options you may want to set per project, the
@@ -209,6 +229,9 @@ overwritten (default \code{TRUE})
 translating and validating again? (default \code{TRUE})
 \item \code{nonmem2rx.extended} - should nonmem2rx support extended control
 streams? (default \code{FALSE})
+\item \code{nonmem2rx.matexp} - should nonmem2rx translate \code{ADVAN5}/\code{ADVAN7}
+general linear models to matrix-exponential \code{matExp()} models (default
+\code{TRUE})?  Set to \code{FALSE} to use the explicit \code{d/dt()} ODE translation.
 \item \code{nonmem2rx.compress} - should the ui be compressed or
 uncompressed (default: \code{TRUE})
 }

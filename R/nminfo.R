@@ -123,12 +123,12 @@ nminfo <- function(file,
       if (verbose) .minfo("reading in phi file")
       .phi <- nmtab(.phiFile)
       if (!is.null(.phi)) {
-        .phi <- .phi[,which(regexpr("(ID|ETA[(])", names(.phi)) != -1), drop=FALSE]
+        .phi <- .phi[,which(regexpr("(ID|ETA[(0-9])", names(.phi)) != -1), drop=FALSE]
         if (length(.phi) > 1) {
           names(.phi) <- vapply(names(.phi),
                                 function(n) {
                                   if (n == "ID") return("ID")
-                                  paste0("eta",substr(n, 5, nchar(n)-1))
+                                  paste0("eta", gsub("\\D", "", n))
                                 }, character(1), USE.NAMES=FALSE)
           .ret$eta <- .phi
           .uses <- c(.uses, "phi")
@@ -179,7 +179,7 @@ nminfo <- function(file,
         } else {
           .l <- .lstFile
         }
-        lapply(.l, .nmlst.fun)
+        lapply(seq_along(.l), .nmlst.fun, lines=.l)
         .ret$tere <- .nmlst$tere
         if (verbose) .minfo("done")
       } else {

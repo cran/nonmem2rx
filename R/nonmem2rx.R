@@ -25,6 +25,12 @@
   .nonmem2rx$dataCond <- character(0)
   .nonmem2rx$dataIgnore1 <- NULL
   .nonmem2rx$dataRecords <- NA_integer_
+  .nonmem2rx$dataRecordsLabel <- NULL
+  .nonmem2rx$dataNull <- NULL
+  .nonmem2rx$dataLast20 <- 50L
+  .nonmem2rx$dataMisdat <- numeric(0)
+  .nonmem2rx$dataRepl <- NA_integer_
+  .nonmem2rx$dataTranslate <- list()
   .nonmem2rx$needNmevid <- FALSE
   .nonmem2rx$needNmid <- FALSE
   .nonmem2rx$tables <- list()
@@ -54,6 +60,7 @@
   .nonmem2rx$hasVol <- FALSE
   .nonmem2rx$needYtype <- FALSE
   .nonmem2rx$needDvid <- FALSE
+  .nonmem2rx$needDur <- FALSE
   .nonmem2rx$needExit <- FALSE
   .nonmem2rx$atol <- 1e-12
   .nonmem2rx$rtol <- 1e-12
@@ -69,9 +76,14 @@
   .nonmem2rx$needExtCalc <- TRUE
   .nonmem2rx$mixp <- integer(0)
   .nonmem2rx$nspop <- 0L
+  .nonmem2rx$mixProbNames <- character(0)
+  .nonmem2rx$mixNative <- FALSE
   .nonmem2rx$advan5 <- NULL
   .nonmem2rx$advan5max <- 0L
   .nonmem2rx$advan5k <- NULL
+  .nonmem2rx$advan5edges <- list()
+  .nonmem2rx$matexp <- FALSE
+  .nonmem2rx$cmtFinalNames <- NULL
 }
 #' Add theta name to .nonmem2rx info
 #'
@@ -99,6 +111,126 @@
 #' @author Matthew L. Fidler
 .addModel <- function(text) {
   assign("model", c(.nonmem2rx$model, text), envir=.nonmem2rx)
+}
+#' Recursively strip redundant wrapping parentheses from a language object
+#'
+#' `(Y0)` parses to a call to `(` and is not `identical()` to the bare `Y0`, so
+#' remove those wrappers before comparing expressions.
+#'
+#' @param e a language object (call, name) or atomic constant
+#' @return `e` with redundant `( )` wrappers removed at every level
+#' @noRd
+#' @author Matthew L. Fidler
+.stripParens <- function(e) {
+  if (is.call(e) && identical(e[[1L]], as.name("(")) && length(e) == 2L) {
+    return(.stripParens(e[[2L]]))
+  }
+  if (is.call(e)) {
+    for (.i in seq_along(e)) e[[.i]] <- .stripParens(e[[.i]])
+  }
+  e
+}
+#' Compare two model expressions for semantic equality
+#'
+#' @param a,b expression strings to compare
+#' @return TRUE when the two expressions are equal (redundant parentheses are
+#'   ignored; numeric values compared with `all.equal`, otherwise compared as
+#'   parsed language objects)
+#' @noRd
+#' @author Matthew L. Fidler
+.exprEqual <- function(a, b) {
+  .ea <- tryCatch(.stripParens(str2lang(a)), error=function(e) NULL)
+  .eb <- tryCatch(.stripParens(str2lang(b)), error=function(e) NULL)
+  if (is.null(.ea) || is.null(.eb)) return(identical(a, b))
+  if (is.numeric(.ea) && is.numeric(.eb)) return(isTRUE(all.equal(.ea, .eb)))
+  identical(.ea, .eb)
+}
+#' Brace nesting depth of each model line
+#'
+#' Model lines are emitted unindented, with blocks delimited by lines like
+#' `if (cond) {`, `} else {` and `}`, so the nesting can be recovered by
+#' counting braces.  A line's depth is the depth of the block it belongs to:
+#' a leading `}` closes the block the line itself is part of, so `}` and
+#' `} else {` report the depth of the enclosing block.
+#'
+#' @param lines character vector of model lines
+#' @return integer vector of the same length, 0 for top-level statements
+#' @noRd
+#' @author Matthew L. Fidler
+.blockDepth <- function(lines) {
+  .count <- function(line, ch) {
+    lengths(regmatches(line, gregexpr(ch, line, fixed=TRUE)))
+  }
+  .open <- .count(lines, "{")
+  .close <- .count(lines, "}")
+  .cur <- 0L
+  .depth <- integer(length(lines))
+  for (.i in seq_along(lines)) {
+    .depth[.i] <- .cur - .close[.i]
+    .cur <- .cur + .open[.i] - .close[.i]
+  }
+  .depth
+}
+#' Drop constant NONMEM DDE past histories that equal the compartment init
+#'
+#' A NONMEM `AP_x_y = expr` past history that is constant (does not depend on
+#' time) and equals the compartment's initial condition is redundant: rxode2
+#' uses the constant initial condition as the default delay history.  Such
+#' `past()` lines are removed.  Non-constant histories (functions of `t`) and
+#' constants that differ from the initial condition are kept.
+#'
+#' Only unconditional statements are considered.  A `past()` or initial
+#' condition written inside an `IF` block holds for some subjects/times only,
+#' so nothing can be concluded about how the two compare; a compartment with
+#' any conditional history or initial condition is left alone.
+#'
+#' @return nothing, called for the side effect of updating `.nonmem2rx$model`
+#' @noRd
+#' @author Matthew L. Fidler
+.pruneConstPast <- function() {
+  .model <- .nonmem2rx$model
+  if (is.null(.model)) return(invisible())
+  .depth <- .blockDepth(.model)
+  # initial conditions are emitted as `rxini.rxddta<x>. <- <expr>`
+  .iniRe <- "^rxini\\.rxddta([0-9]+)\\. <- (.*)$"
+  .pastRe <- "^past\\(rxddta([0-9]+), TAU[0-9]+\\) <- (.*)$"
+  .iniMap <- list()
+  .cond <- character(0) # compartments with a conditional init or past()
+  for (.re in c(.iniRe, .pastRe)) {
+    for (.i in grep(.re, .model)) {
+      .m <- regmatches(.model[.i], regexec(.re, .model[.i]))[[1]]
+      if (.depth[.i] != 0L) {
+        .cond <- c(.cond, .m[2])
+      } else if (identical(.re, .iniRe)) {
+        .iniMap[[.m[2]]] <- .m[3]
+      }
+    }
+  }
+  .drop <- integer(0)
+  for (.i in seq_along(.model)) {
+    if (.depth[.i] != 0L) next # conditional past(), cannot reason about it
+    .m <- regmatches(.model[.i], regexec(.pastRe, .model[.i]))[[1]]
+    if (length(.m) == 0L) next
+    .cmt <- .m[2]
+    .rhs <- .m[3]
+    if (.cmt %in% .cond) next # a conditional init/past() decides this compartment
+    .vars <- tryCatch(all.vars(str2lang(.rhs)), error=function(e) character(0))
+    # NONMEM `T`/`TIME` are normally lower-cased to `t`/`time` before this
+    # point, but compare case-insensitively so any un-translated variant still
+    # counts as time-dependent (keeping the history is always the safe choice)
+    if (any(tolower(.vars) %in% c("t", "time"))) next # non-constant history, keep
+    .ini <- .iniMap[[.cmt]]
+    if (is.null(.ini)) .ini <- "0" # default rxode2 initial condition
+    if (.exprEqual(.rhs, .ini)) {
+      .drop <- c(.drop, .i)
+      .minfo(sprintf("dropping constant NONMEM past history for compartment %s (equals its initial condition; rxode2 uses the initial condition as the default delay history)",
+                     .cmt))
+    }
+  }
+  if (length(.drop)) {
+    assign("model", .model[-.drop], envir=.nonmem2rx)
+  }
+  invisible()
 }
 #' Use lower case for the lhs defined parts of the model
 #'
@@ -242,6 +374,15 @@
                  v
                }, character(1), USE.NAMES=FALSE)
   .c <- paste0("rxddta",seq_along(.n))
+  # record the final compartment names (index -> name, including any `c.`
+  # collision handling above) so the optional matrix-exponential path can emit
+  # cmt()/k_<from>_<to> using the same names the states are renamed to
+  if (.nonmem2rx$advan5max > 0L) {
+    .fn <- paste0("rxddta", seq_len(.nonmem2rx$advan5max))
+    .m <- min(length(.n), .nonmem2rx$advan5max)
+    if (.m > 0L) .fn[seq_len(.m)] <- .n[seq_len(.m)]
+    .nonmem2rx$cmtFinalNames <- .fn
+  }
   .txt<- paste0("rxode2::rxRename(rxui, ", paste(paste(.n,"=", .c, sep=""), collapse=", "), ")")
   .tmp <- try(eval(parse(text=.txt)),silent=TRUE)
   if (inherits(.tmp, "try-error")) {
@@ -251,31 +392,10 @@
     .ret <- .tmp
     .minfo("done")
   }
-  if (utils::packageVersion("rxode2") <= "2.0.12") {
-    .expr <- .ret$lstExpr
-    .expr <- lapply(seq_along(.expr), function(i) {
-      .x <- .expr[[i]]
-      if (is.call(.x) && (identical(.x[[1]], quote(`<-`)) ||
-                            identical(.x[[1]], quote(`=`)))) {
-        if (is.call(.x[[2]]) && length(.x[[2]]) == 2L &&
-              is.numeric(.x[[2]][[2]]) &&
-              grepl("^rxddta",as.character(.x[[2]][[1]]))) {
-          .cur <- as.character(.x[[2]][[1]])
-          .w <- which(.cur == .c)
-          if (length(.w) == 1) {
-            .x[[2]] <- as.call(c(str2lang(.n[.w]), lapply(.x[[2]][-1], function(i) i)))
-          }
-        }
-      }
-      .x
-    })
-    .expr <- bquote(model(.(as.call(c(quote(`{`), .expr)))))
-    model(.ret) <- .expr
-  }
   .ret
 }
 
-#'  Update the input model with final parmeter estimates
+#'  Update the input model with final parameter estimates
 #'
 #' @param rxui ui
 #' @inheritParams nonmem2rx
@@ -332,20 +452,33 @@
        update=.update.theta && .update.omega && .update.sigma)
 }
 
-#' Convert a NONMEM source file to a rxode model (nlmixr2-syle)
+#' Convert a NONMEM source file to a rxode model (nlmixr2-style)
 #'
 #' @param file NONMEM run file, like an `.xml` or `.lst` file or even
 #'   a control stream
 #'
-#' @param inputData this is a path to the input dataset (or `NULL` to
-#'   determine from the dataset).  Often the input dataset may be
-#'   different from the place it points to in the control stream
-#'   because directories can be created to run NONMEM from a script.
-#'   Because of this, when this is specified the input data will be
-#'   assumed to be from here instead.
+#' @param inputData this is the input dataset used for validation.  It
+#'   can be:
+#'
+#' - `NULL` (default) to determine the dataset from the `$DATA` record
+#'   in the control stream
+#'
+#' - a path to the input dataset (as a character string).  Often the
+#'   input dataset may be different from the place it points to in the
+#'   control stream because directories can be created to run NONMEM
+#'   from a script.  Because of this, when this is specified the input
+#'   data will be assumed to be from here instead.
+#'
+#' - a `data.frame` of the already read-in NONMEM input dataset.  This
+#'   is useful when you want to import a model from a different system,
+#'   have the data to check it against, but the file paths in the
+#'   control stream do not match.  The columns are assumed to be in the
+#'   same order as the `$INPUT` record (just as if it were read from
+#'   the file), and the `$INPUT` names, `DROP`, `IGNORE`/`ACCEPT`
+#'   filters and record subsetting are applied.
 #'
 #' @param nonmemOutputDir This is a path the the nonmem output
-#'   directory.  When not `NULL` it will assume that the diretory for
+#'   directory.  When not `NULL` it will assume that the directory for
 #'   the output files is located here instead of where the control
 #'   stream currently exists.
 #'
@@ -401,6 +534,13 @@
 #' @param extended Translate extended control streams from tools like
 #'   wings for NONMEM
 #'
+#' @param matexp For `ADVAN5`/`ADVAN7` general linear models (which NONMEM
+#'   itself solves with matrix exponentials), translate the linear system to
+#'   rxode2's native matrix-exponential `matExp()` model (default `TRUE`).
+#'   Set `matexp=FALSE` to instead use the explicit `d/dt()` ODE translation.
+#'   Other model types are unaffected.  If the installed rxode2 does not
+#'   support `matExp()`, the ODE translation is used with a warning.
+#'
 #' @param nLinesPro The number of lines to check for the $PROBLEM
 #'   statement.
 #'
@@ -445,13 +585,13 @@
 #' - a `NULL` (meaning don't save),
 #'
 #' - a logical (default `FALSE`, don't save) that when `TRUE` will use
-#'   the base name of the control stream, append `.qs` and save the file
-#'   using `qs2::qs_save()`
+#'   the base name of the control stream, append `.rds` and save the file
+#'   using `saveRDS()`
 #'
 #' - A path to a file to write
 #'
-#'   Note that this file will be saved with qs2::qs_save() and can be
-#'   loaded with qs2::qs_read()
+#'   Note that this file will be saved with saveRDS() and can be
+#'   loaded with readRDS()
 #'
 #' - A `NA` value which means save if the whole process (including
 #'   validation) takes too much time
@@ -501,6 +641,10 @@
 #'
 #' - `nonmem2rx.extended` - should nonmem2rx support extended control
 #'    streams? (default `FALSE`)
+#'
+#' - `nonmem2rx.matexp` - should nonmem2rx translate `ADVAN5`/`ADVAN7`
+#'    general linear models to matrix-exponential `matExp()` models (default
+#'    `TRUE`)?  Set to `FALSE` to use the explicit `d/dt()` ODE translation.
 #'
 #' - `nonmem2rx.compress` - should the ui be compressed or
 #' uncompressed (default: `TRUE`)
@@ -569,6 +713,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
                       strictLst=FALSE,
                       unintFixed=FALSE,
                       extended=getOption("nonmem2rx.extended",FALSE),
+                      matexp=getOption("nonmem2rx.matexp", TRUE),
                       nLinesPro=20L,
                       delta=1e-4,
                       usePhi=TRUE,
@@ -599,7 +744,13 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
   .pt <- proc.time()
   .ret <- .collectWarn({
     checkmate::assertFileExists(file)
-    if (!is.null(inputData)) checkmate::assertFileExists(inputData)
+    # inputData must be NULL (use $DATA), a data.frame (already-read input), or
+    # a path to a csv file; assert the path case explicitly so an unexpected
+    # type gives a clear message instead of a confusing assertFileExists() error
+    if (!is.null(inputData) && !is.data.frame(inputData)) {
+      checkmate::assertString(inputData, .var.name="inputData")
+      checkmate::assertFileExists(inputData)
+    }
     if (!is.null(nonmemOutputDir)) checkmate::assertDirectoryExists(nonmemOutputDir)
     if (!is.null(rename)) checkmate::assertCharacter(rename, any.missing=FALSE, min.len=1, names="strict")
     checkmate::assertIntegerish(scanLines, len=1, any.missing=FALSE, lower=1L)
@@ -607,6 +758,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     checkmate::assertLogical(updateFinal, len=1, any.missing= FALSE)
     checkmate::assertLogical(unintFixed, len=1, any.missing= FALSE)
     checkmate::assertLogical(extended, len=1, any.missing= FALSE)
+    checkmate::assertLogical(matexp, len=1, any.missing= FALSE)
     checkmate::assertLogical(overwrite, len=1, any.missing = FALSE)
     checkmate::assertLogical(load, len=1, any.missing = FALSE)
     checkmate::assertLogical(compress, len=1, any.missing = FALSE)
@@ -622,7 +774,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
         save <- TRUE
       }
       if (save) {
-        save <- paste0(tools::file_path_sans_ext(file),".qs")
+        save <- paste0(tools::file_path_sans_ext(file),".rds")
       } else {
         save <- NULL
       }
@@ -630,7 +782,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     .digest <- digest::digest(list(utils::packageVersion("nonmem2rx"), file, inputData, nonmemOutputDir,
                                    rename, tolowerLhs, thetaNames, etaNames, cmtNames, updateFinal,
                                    determineError, validate, nonmemData, strictLst, unintFixed,
-                                   extended, nLinesPro, delta, usePhi, useExt, useCov, useXml,
+                                   extended, matexp, nLinesPro, delta, usePhi, useExt, useCov, useXml,
                                    useLst, mod, cov, phi, lst, xml, ext, scanLines, keep))
     if (!is.null(save)) {
       if (load && overwrite) {
@@ -643,7 +795,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
       }
       if (load && file.exists(save)) {
         .minfo(paste0("loading save file '", save, "'"))
-        .ret <- qs2::qs_read(save)
+        .ret <- readRDS(save)
         if (is.null(.ret$digest)) {
           .minfo(paste0("older version of nonmem2rx without digest, ignoring save file '", save, "'"))
         } else if (.ret$digest == .digest) {
@@ -657,6 +809,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     checkmate::assertIntegerish(nLinesPro, len=1, lower=1)
     .clearNonmem2rx()
     .nonmem2rx$extendedCtl <- extended
+    .nonmem2rx$matexp <- matexp
     .nonmem2rx$unintFixed <- unintFixed
     on.exit({
       .Call(`_nonmem2rx_r_parseFree`)
@@ -679,6 +832,10 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     }
     if (.nonmem2rx$needDvid) {
       warning("'dvid' variable has special meaning in rxode2, renamed to 'nmdvid', rename/copy in your data too",
+              call.=FALSE)
+    }
+    if (.nonmem2rx$needDur) {
+      warning("'dur' variable has special meaning in rxode2, renamed to 'rxDur', rename/copy in your data too",
               call.=FALSE)
     }
     if (length(.nonmem2rx$esnDups) > 0) {
@@ -737,6 +894,11 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
                })
       }
     }
+    # collapse imperative MIXNUM/MIXEST branching into native mix() calls now that
+    # the full $PK/$PRED code has been parsed
+    .nonmem2rxMix()
+    # drop redundant constant DDE past histories that equal the compartment init
+    .pruneConstPast()
     .txt <- paste0("function() {\n",
                    "rxode2::ini({\n",
                    paste(.nonmem2rx$ini, collapse="\n"),
@@ -772,7 +934,13 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     .msg <- NULL
     if (validate) {
       if (length(.nonmem2rx$mixp) > 0) {
-        .minfo("mixture model, not currently validated")
+        # The model is now a native mixture (mix()/mixest) that simulates and
+        # estimates, but simulation draws the sub-population randomly (mixunif)
+        # whereas NONMEM assigns each subject its estimated component (MIXEST),
+        # which NONMEM does not expose as a recoverable per-subject column here.
+        # Without that assignment a faithful prediction comparison is not
+        # possible, so validation stays gated (see NEWS / plan for enabling it).
+        .minfo("native mixture model; simulation-based validation skipped (per-subject sub-population not recoverable)")
         .msg <- "mixture model; not validated"
         validate <- FALSE
       }
@@ -837,7 +1005,8 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
         }
         # get ETA data if it has better digits than the phi file (or isn't present yet)
         .etaData <- try(.readInEtasFromTables(file, nonmemData=.nonmemData, rxModel=.model,
-                                              nonmemOutputDir=nonmemOutputDir,rename=rename,
+                                              nonmemOutputDir=nonmemOutputDir,
+                                              rename=rename,
                                               digits=.digs))
         if (inherits(.etaData, "try-error")) .etaData <- NULL
         if (is.null(.etaData) && !is.null(.lstInfo$eta)) {
@@ -910,6 +1079,18 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
       checkmate::assertCharacter(cmtNames, any.missing = FALSE)
     }
     .rx <- .replaceCmtNames(.rx, cmtNames)
+    if (matexp && .nonmem2rx$advan %in% c(5L, 7L)) {
+      # opt-in: re-emit the ADVAN5/7 linear system as a native matrix-exponential
+      # matExp() model.  This runs on the finished, already-renamed ui so the
+      # compartment names are final (rxRename does not touch the k_<from>_<to>
+      # rate tokens, so the block cannot be renamed after the fact); the
+      # rxUiDecompress() below then normalizes the rebuilt ui
+      .fn <- .nonmem2rx$cmtFinalNames
+      if (is.null(.fn)) .fn <- paste0("rxddta", seq_len(.nonmem2rx$advan5max))
+      .minfo("translating ADVAN5/7 linear system to matrix-exponential matExp() model")
+      .rx <- .advan5matexp(.rx, .fn)
+      .minfo("done")
+    }
     .rx <- rxode2::rxUiDecompress(.rx)
     .rx$file <- file
     .rx$outputExtension <- lst
@@ -947,6 +1128,9 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
     .rx$ipredData <- .ipredData
     .rx$predData <- .predData
     .rx$sigmaNames <- dimnames(.sigma)[[1]]
+    .rx$nonmemErrorBlock <- .nonmem2rx$nonmemErrorBlock
+    .rx$nonmemPkBlock    <- .nonmem2rx$nonmemPkBlock
+    .rx$nonmemPredBlock  <- .nonmem2rx$nonmemPredBlock
     .msg <- .nonmem2rxValidate(.rx, msg=.msg, validate=validate, ci=0.95, sigdig=3)
     if (!is.null(.msg)) {
       .rx$meta$validation <- .msg
@@ -1002,7 +1186,7 @@ nonmem2rx <- function(file, inputData=NULL, nonmemOutputDir=NULL,
   }
   if (!is.null(save)) {
     .minfo("save model and validation")
-    qs2::qs_save(.ret, save)
+    saveRDS(.ret, save)
     .minfo("done")
   }
   .ret

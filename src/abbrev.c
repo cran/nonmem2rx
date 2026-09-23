@@ -109,6 +109,7 @@ int icallWarning = 0;
 int irepWarning = 0;
 int simWarning=0;
 int ipredSimWarning = 0;
+int durWarning = 0;
 int curMtime = 0;
 int mtdiffWarning = 0;
 int hasMnow = 0;
@@ -119,6 +120,7 @@ SEXP nonmem2rxNeedNmid(void);
 SEXP nonmem2rxNeedNmid(void);
 SEXP nonmem2rxNeedYtype(void);
 SEXP nonmem2rxNeedDvid(void);
+SEXP nonmem2rxNeedDur(void);
 SEXP nonmem2rxPushScaleVolume(int scale, const char *v);
 SEXP nonmem2rxHasVolume(const char *v);
 SEXP nonmem2rxNeedExit(void);
@@ -137,6 +139,19 @@ int abbrev_identifier_or_constant(char *name, int i, D_ParseNode *pn) {
     sAppendN(&curLine, "rxalag.", 7);
     writeAinfo(v + 4);
     sAppendN(&curLine, ".", 1);
+    return 1;
+  } else if (!strcmp("adState", name)) {
+    // NONMEM DDE delayed state AD_x_y = value of A(x) delayed by TAUy.
+    // Translate to rxode2 delay(rxddta<x>, TAU<y>).
+    D_ParseNode *xpn = d_get_child(pn, 0);
+    char *v = (char*)rc_dup_str(xpn->start_loc.s, xpn->end);
+    char *xstr = v + 3;             // skip "AD_"; xstr now = "x_y"
+    char *ystr = strchr(xstr, '_'); // separator between state and delay index
+    *ystr = '\0';                   // terminate the state number; xstr = "x"
+    ystr++;                         // ystr = "y" (the delay index)
+    sAppendN(&curLine, "delay(", 6);
+    writeAinfo(xstr);              // appends rxddta<x> (ODE) and updates maxA
+    sAppend(&curLine, ", TAU%s)", ystr);
     return 1;
   } else if (!strcmp("ratei", name)) {
     D_ParseNode *xpn = d_get_child(pn, 0);
@@ -204,10 +219,10 @@ int abbrev_identifier_or_constant(char *name, int i, D_ParseNode *pn) {
       sAppendN(&curLine, "newind", 6);
       return 1;
     } else if (!nmrxstrcmpi("MIXNUM", v)) {
-      sAppendN(&curLine, "MIXNUM", 6);
+      sAppendN(&curLine, "NMMIXNUM", 8);
       return 1;
     } else if (!nmrxstrcmpi("MIXEST", v)) {
-      sAppendN(&curLine, "MIXNUM", 6);
+      sAppendN(&curLine, "NMMIXNUM", 8);
       return 1;
     } else if (!nmrxstrcmpi("MIXP", v)) {
       sAppendN(&curLine, "cur.mixp", 8);
@@ -298,6 +313,14 @@ int abbrev_identifier_or_constant(char *name, int i, D_ParseNode *pn) {
     } else if (!nmrxstrcmpi("ytype", v)) {
       nonmem2rxNeedYtype();
       sAppendN(&curLine, "nmytype", 7);
+      return 1;
+    } else if (!nmrxstrcmpi("dur", v)) {
+      if (durWarning == 0) {
+        Rf_warning("'dur' variable has special meaning in rxode2, renamed to 'rxDur', rename/copy in your data too");
+        durWarning = 1;
+        nonmem2rxNeedDur();
+      }
+      sAppendN(&curLine, "rxDur", 5);
       return 1;
     } else if (!nmrxstrcmpi("sim", v)) {
       if (simWarning == 0) {
@@ -817,11 +840,12 @@ int abbrev_unsupported_lines(char *name, int i, D_ParseNode *pn) {
     sAppend(&curLine, "rx.mpast.%d.", p);
     return 0;
   } else if (!strcmp("com", name)) {
-    sClear(&sbTransErr);
-    sAppend(&sbTransErr, "COM(#) not supported in translation");
-    updateSyntaxCol();
-    trans_syntax_error_report_fn0(sbTransErr.s);
-    finalizeSyntaxError();
+    if (i != 0) return 1;
+    D_ParseNode *xpn = d_get_child(pn, 1);
+    char *v1 = (char*)rc_dup_str(xpn->start_loc.s, xpn->end);
+    int p = atoi(v1);
+    sAppend(&curLine, "rxCOM_%d_", p);
+    return 0;
   } else if (!strcmp("pcmt", name)) {
     sClear(&sbTransErr);
     sAppend(&sbTransErr, "PCMT(#) not supported in translation");
@@ -873,6 +897,31 @@ int abbrev_unsupported_lines(char *name, int i, D_ParseNode *pn) {
                x);
     sAppend(&curLine, "omega.%d.", x);
     nonmem2rxPushOmegaEst(x, -1);
+  }
+  return 0;
+}
+
+int abbrev_com_assign(char *name, int i, D_ParseNode *pn) {
+  // Translate a NONMEM COM(#) array assignment (declared with
+  // '$ABBREVIATED COMRES=#') to the rxode2 sticky variable rxCOM_#_.  The
+  // COM array retains its value from record to record in NONMEM, matching
+  // rxode2 sticky variables (variables initialize to NA per individual and
+  // carry their value forward unless explicitly updated).
+  if (!strcmp("comAssign", name)) {
+    if (i == 0) {
+      // child 0 is the 'com' node: ('COM(' | 'com(') decimalintNo0 ')'
+      D_ParseNode *comNode = d_get_child(pn, 0);
+      D_ParseNode *xpn = d_get_child(comNode, 1);
+      char *v = (char*)rc_dup_str(xpn->start_loc.s, xpn->end);
+      int p = atoi(v);
+      sAppend(&curLine, "rxCOM_%d_ <- ", p);
+      return 1;
+    } else if (i == 1) {
+      // '='
+      return 1;
+    }
+    // logical_or_expression is processed normally
+    return 0;
   }
   return 0;
 }
@@ -1012,6 +1061,24 @@ int abbrev_cmt_properties(char *name, int i, D_ParseNode *pn) {
       writeAinfo(v + 4);
       cmtInfoStr = v + 4;
       sAppendN(&curLine, ". <- ", 5);
+      return 1;
+    } else if (i == 1) {
+      return 1;
+    }
+    return 0;
+  } else if (!strcmp("apState", name)) {
+    // NONMEM DDE past history AP_x_y = expr defines the pre-history of A(x)
+    // for delay TAUy.  Translate to rxode2 past(rxddta<x>, TAU<y>) <- expr.
+    if (i == 0) {
+      D_ParseNode *xpn = d_get_child(pn, 0);
+      char *v = (char*)rc_dup_str(xpn->start_loc.s, xpn->end);
+      char *xstr = v + 3;             // skip "AP_"; xstr now = "x_y"
+      char *ystr = strchr(xstr, '_'); // separator between state and delay index
+      *ystr = '\0';                   // terminate the state number; xstr = "x"
+      ystr++;                         // ystr = "y" (the delay index)
+      sAppendN(&curLine, "past(", 5);
+      writeAinfo(xstr);              // appends rxddta<x>
+      sAppend(&curLine, ", TAU%s) <- ", ystr);
       return 1;
     } else if (i == 1) {
       return 1;
@@ -1217,6 +1284,7 @@ void wprint_parsetree_abbrev(D_ParserTables pt, D_ParseNode *pn, int depth, prin
           abbrev_function(name, i, pn) ||
           abbrev_unsupported_lines(name, i ,pn) ||
           abbrev_mix_related(name, i, pn) ||
+          abbrev_com_assign(name, i, pn) ||
           abbrev_mtime_related(name, i, pn)) {
         continue;
       }
@@ -1227,6 +1295,8 @@ void wprint_parsetree_abbrev(D_ParserTables pt, D_ParseNode *pn, int depth, prin
   if (!strcmp("assignment", name) ||
       !strcmp("ifexit", name) ||
       !strcmp("if1", name) ||
+      !strcmp("comAssign", name) ||
+      !strcmp("apState", name) ||
       !strcmp("derivative", name) ||
       !strcmp("derivativeI", name) ||
       !strcmp("scale", name) ||
@@ -1313,6 +1383,10 @@ void trans_abbrev(const char* parse){
   eBuf = gBuf;
   eBufLast = 0;
   errP = curP;
+  /* TODO(long-term): switch to udparse() once dparser-R ships that symbol
+   * to CRAN.  udparse() accepts an unsigned int for buf_len, eliminating
+   * the silent (int)strlen truncation on inputs >= INT_MAX bytes.
+   * Track at https://github.com/nlmixr2/dparser-R */
   _pn= dparse(curP, gBuf, (int)strlen(gBuf));
   if (!_pn || curP->syntax_errors) {
     //rx_syntax_error = 1;
@@ -1339,6 +1413,7 @@ SEXP _nonmem2rx_trans_abbrev(SEXP in, SEXP prefix, SEXP abbrevLinSEXP, SEXP exte
   ipredSimWarning=0;
   icallWarning=0;
   irepWarning=0;
+  durWarning=0;
   curMtime = 0;
   mtdiffWarning=0;
   hasMnow=0;

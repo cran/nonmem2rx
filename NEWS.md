@@ -1,3 +1,193 @@
+# nonmem2rx 0.1.11
+
+* Reading a NONMEM `.lst` covariance block is no longer slow.  `lst.g` let a
+  run of numbers be cut into `constant_line`s in exponentially many ways, and
+  dparser resolves that ambiguity by greediness, which re-walks the whole
+  accumulated parse tree at every split point -- so the cost grew with the cube
+  of the block size (40 rows took 26 seconds).  A statement is now a single
+  item rather than a line of them, which the tree walk never distinguished
+  anyway: `inst/run-153.lst` imports in 0.17s instead of 2.24s,
+  `DDMODEL00000301/run3.lst` in 0.15s instead of 1.57s, and 400 rows -- which
+  did not finish in any usable time before -- parse in 0.3s.  A `+` still has
+  to lead an item, so a stray one is still a syntax error (#250).
+
+* `$THETA` and `$OMEGA`/`$SIGMA` records parse about 2.5x faster.  Both
+  grammars had the ambiguity found in `rxode2`'s `tran.g`: a nullable
+  `statement` under `(statement)+`, which lets an empty statement be inserted
+  at every position, and which dparser resolves by greediness.  `omega.g` also
+  derived the empty string three different ways through `block_type`.  The
+  emptiness moved to the list, so an empty record and `$OMEGA BLOCK(n) SAME`
+  (which carries no statements) still parse.  A 400-theta `$THETA` record goes
+  from 7.3s to 2.8s (#250).
+
+  Both grammars now report no ambiguity at all under dparser's
+  `ambiguity_fn`.  What is left of their super-linear cost is not ambiguity but
+  GLR branching from the optional `')'` and `','` in `theta.g`'s `theta1`..
+  `theta8` and in `omega.g`'s `omega0`..`omega4`, which is a separate matter.
+
+  The remaining `inst/*.g` grammars (`abbrev.g`, `abbrec.g`, `data.g`,
+  `input.g`, `model.g`, `sub.g`, `tab.g`) were measured and are flat in the
+  record size.
+
+* Validation plots now separate multiple endpoints (#171).  When the
+  observations come from more than one `DVID` (or, without a `DVID`, more
+  than one `CMT`), the `predCompare`, `ipredCompare` and `iwresCompare`
+  datasets gain a final `ENDPOINT` column (like `"DVID=2"`).  `plot()` and
+  `autoplot()` then facet the NONMEM vs rxode2 overview by type and
+  endpoint, and the per-subject pages draw one panel for each subject and
+  endpoint with its own y scale, so endpoints on different scales are no
+  longer drawn on the same axis.  Single-endpoint output is unchanged.
+
+* `$DATA` now accepts every option in the NONMEM `$DATA` usage, and the ones
+  that change the data are applied when the input data is imported (#181):
+  - `TRANSLATE=(TIME/F[/D], II/F[/D])` divides TIME/II by `F` and rounds to
+    `D` digits (for example `TIME/24` for hours to days, `II/0.01/6`).  The
+    item may be named by its `$INPUT` synonym.
+  - Before `TRANSLATE`, NM-TRAN's day-time translation is done: `hh:mm` or
+    `hh:mm:ss` clock times and `DATE`/`DAT1`/`DAT2`/`DAT3` dates (with
+    `LAST20=` for two digit years) become times relative to each
+    individual's first record, and `hh:mm` II values become hours.
+  - `RECORDS=n` (also `NRECORDS`, `RECS`, `NRECS`) is now applied before
+    `IGNORE`/`ACCEPT`, as NM-TRAN does, and `RECORDS=label` (`ID`, `IR`,
+    `INDREC`, ...) is supported.
+  - `NULL=c` replaces null data items and `MISDAT=r` values are read as 0.
+  - `DROP`/`SKIP` items are kept until after `IGNORE`/`ACCEPT`, so they can
+    be used in filter conditions.
+  - The format specification, `*`, `CHECKDATA`, `NOOPEN`, `BLANKOK`, `REPL`,
+    `(NO)FDATACSV`, `PRED_IGNORE_DATA`, the `/=` operator, unquoted
+    character values (`GEN.EQ.M` compares with the string `M`, not a
+    column) and lower/mixed case options are now parsed.
+  - An `IGNORE`/`ACCEPT` condition on a missing value is not met, so `ACCEPT`
+    drops such records; an `IGNORE`/`ACCEPT` list that cannot be parsed is
+    now a syntax error instead of being silently skipped.
+
+* Importing a dataset with many reused NONMEM `ID`s is no longer slow.  The
+  next free alias was found by walking every alias already given out and
+  scanning the whole level list for each, so the cost grew with the cube of
+  the number of reused blocks: 4000 blocks took about 10 seconds.  Only the
+  next free suffix per id is remembered now, and the same 4000 blocks are
+  below timer resolution.
+
+* Importing a dataset where a NONMEM `ID` starts over more than twice no
+  longer hangs.  A repeated `ID` is aliased `<id>#2`, `<id>#3`, and so on, but
+  the alias counter never advanced, so the third block of an id searched for
+  `#2`, found it, and searched for `#2` again without end.  Two blocks were
+  fine, which is why this went unnoticed; three or more -- an id reused after
+  a time reset, as in crossover and multiple-occasion data -- never returned.
+
+
+* `nonmem2rx` now requires `rxode2` 5.1.5 or later.  That release fixes an
+  `rxode2` model-piping bug where a model piped from an import (which keeps a
+  persistent `meta` environment) shared the original's cached simulation
+  model, so states appended by piping (like a running `AUC`) were silently
+  dropped from the solve (#246).
+
+* NONMEM delay differential equation (DDE) models are now translated to
+  rxode2's native `delay()`/`past()` syntax.  The DDE solvers `ADVAN16`
+  (RADAR5) and `ADVAN18` (DDE_SOLVER) are accepted (in addition to the
+  `ADVAN13` DDE extension), a delayed state `AD_x_y` (state `A(x)` delayed by
+  `TAUy`) becomes `delay(rxddta<x>, TAU<y>)`, and a past history
+  `AP_x_y = expr` becomes `past(rxddta<x>, TAU<y>) <- expr` (NONMEM `T` maps to
+  rxode2 `t`).  A constant past that equals the compartment's initial condition
+  is dropped, since rxode2 uses the initial condition as the default delay
+  history.  The translated models solve in rxode2 (dense auto-switch) and can
+  be estimated in nlmixr2.  `ADVAN17` (delay differential *algebraic*
+  equations) is not supported.
+
+* Regenerate the `rxSolve.nonmem2rx()` method so it no longer passes the
+  `order` solver argument, which was removed from `rxode2::rxSolve()`.
+  Passing it caused solving a translated model to fail with
+  `unused argument: 'order'` against the current CRAN `rxode2`.
+
+* `nonmem2rx()`'s `inputData` argument now also accepts a `data.frame`
+  of the already read-in NONMEM input dataset (in addition to a file
+  path).  This is useful when importing a model from a different
+  system where you have the data to validate against but the file
+  paths in the control stream do not match (#186).  The columns are
+  assumed to be in `$INPUT` order and the usual `$INPUT` names,
+  `DROP`, `IGNORE`/`ACCEPT` filters and record subsetting are applied.
+* `ADVAN5`/`ADVAN7` general linear models (which NONMEM itself solves with
+  matrix exponentials) are now translated to rxode2's native
+  matrix-exponential `matExp()` model (`cmt()` declarations plus
+  `k_<from>_<to>` rate constants) by default, instead of explicit `d/dt()`
+  ODEs.  The previous ODE translation is retained and can be selected with
+  the new `matexp=FALSE` argument (or `options(nonmem2rx.matexp=FALSE)`).
+  Other model types are unaffected, and if the installed rxode2 does not
+  support `matExp()` the ODE translation is used with a warning.
+
+* NONMEM mixture models (`$MIX`) now translate to the native rxode2/nlmixr2
+  mixture support (`mix()`), replacing the previous `rxord()` simulation of
+  the sub-population.  When the mixture probabilities are simple parameters
+  (e.g. `P(1)=THETA(5)`), the imperative `MIXNUM`/`MIXEST` branching in
+  `$PK`/`$PRED` is collapsed into readable `mix()` calls (e.g.
+  `V <- mix(VCM, p1, VCF)`), the probabilities are registered on the model
+  (`ui$mixProbs`) so the model estimates natively under `focei` and `saem`,
+  and `MIXEST`/`MIXNUM` map to the reserved `mixest` component.  Models whose
+  probabilities are not simple parameters fall back to the previous `rxord()`
+  translation.  Simulation-based validation remains gated for mixtures because
+  NONMEM's per-subject sub-population assignment is not recoverable for a
+  faithful prediction comparison.
+
+* Support the NONMEM `$DATA` numeric-comparison operators `.EQN.` and
+  `.NEN.` in `IGNORE=`/`ACCEPT=` filters (#195).  These request that the
+  data item be converted to numeric before being compared, so they now
+  translate to `as.numeric(.data$COL) == value` / `!= value`.  `.NEN.`
+  was previously unparseable (silently dropping the filter), and `.EQN.`
+  was treated as a plain `==` without the numeric coercion.
+* Support assignment to the NONMEM `COM(#)` communication array (declared
+  with `$ABBREVIATED COMRES=#`).  Previously only reading `COM(#)` was
+  translated, so control streams that assigned `COM(#)` (e.g.
+  `IF(NEWIND.LE.1) COM(1)=-1`) failed to parse (#228).  A `COM(#)`
+  assignment now translates to the rxode2 sticky variable `rxCOM_#_`,
+  which retains its value from record to record like the NONMEM COM
+  array (see the rxode2 sticky variable vignette).
+
+* Add optional LLM-assisted residual error detection to `as.nonmem2rx()`
+  (via the `ellmer` package) for models imported without a residual
+  error specification (`$predDf`).  When no `chat` engine is supplied,
+  the default engine is now chosen dynamically: `getOption(
+  "nonmem2rx.llmProvider")` is honored first (accepting any exported
+  `ellmer::chat_*` engine by name), otherwise the first provider with a
+  configured API key is auto-detected (e.g. `ANTHROPIC_API_KEY`,
+  `OPENAI_API_KEY`, `GEMINI_API_KEY`), instead of always requiring
+  Claude.  Any `ellmer` chat object may also be passed directly through
+  the new `chat` argument.
+
+* Add integer overflow guards in the C-level string buffer
+  (`src/sbuf.c`).  `sAppendN`, `sAppend`, and `addLine` previously
+  computed the new allocation size as `sbb->o + 2 + n + SBUF_MXBUF`
+  (or analogous expression).  When the user-controlled `n` was large
+  enough this expression overflowed `int` to a negative value, which
+  `R_Realloc` then converted to a huge unsigned size and crashed.  The
+  guard converts this into a clean R error.
+
+* Document known `(int)strlen(gBuf)` cast in all 10 NONMEM-record parser
+  entry-points (`src/abbrec.c`, `src/abbrev.c`, `src/data.c`,
+  `src/input.c`, `src/lst.c`, `src/model.c`, `src/omega.c`, `src/sub.c`,
+  `src/tab.c`, `src/theta.c`).  Inputs at or above `INT_MAX` bytes cause
+  silent length truncation passed to `dparse()`.  A long-term fix will
+  switch each call site to `udparse()` once dparser-R ships that symbol
+  to CRAN.
+
+* Fix implicit `ptrdiff_t` to `int` truncation in `rc_dup_str`
+  (`src/records.c`).  When the parser passes a string segment longer
+  than `INT_MAX` bytes (or a NUL-terminated string of that length),
+  the pointer difference / `strlen` result was silently cast to `int`,
+  truncating the length to a wrong (often negative) value.  The new
+  guard rejects such inputs with an informative R error.
+
+
+
+# nonmem2rx 0.1.10
+
+* Bug fix for covariance matrices that span multiple FORTRAN output pages
+
+* Bug fix for multiple errors are imported using `nonmem2rx()`
+
+* Change NONMEM import for mixture models to prepend NM to MIXNUM and
+  related import items so they will not interact with rxode2/nlmixr2's
+  handling of mixture models.
+
 # nonmem2rx 0.1.9
 
 * Try to make sure all the values that can be numeric are numeric #208

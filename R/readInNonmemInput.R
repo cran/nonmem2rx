@@ -1,10 +1,38 @@
+#' Apply NONMEM's single-character `$DATA` IGNORE record filter
+#'
+#' `IGNORE=@` drops records whose first column starts with a letter;
+#' `IGNORE=<char>` drops records whose first column equals `<char>`; when no
+#' single-character IGNORE is given, `#` comment rows are dropped.  Sharing this
+#' between the file- and `data.frame`-supplied input paths keeps them filtered
+#' identically.
+#'
+#' @param data data.frame of the (as-read) nonmem input dataset
+#' @return `data` with ignored records removed
+#' @noRd
+#' @author Matthew L. Fidler
+.dropDataIgnore1Rows <- function(data) {
+  if (!is.null(.nonmem2rx$dataIgnore1)) {
+    if (.nonmem2rx$dataIgnore1 == "@") {
+      .w <- which(regexpr("^[A-Za-z]", data[, 1]) != -1)
+    } else {
+      .w <- which(data[, 1] == .nonmem2rx$dataIgnore1)
+    }
+  } else {
+    .w <- which(regexpr("^[#]", data[, 1]) != -1)
+  }
+  if (length(.w) > 0) data <- data[-.w, ]
+  data
+}
+
 #' Read in data frame nonmem input file
 #'
 #' This requires the parsing environment setup
 #'
 #' @param file this is the file name of the control stream
 #' @param inputData is a flag to use a different input data than
-#'   `file`.  This is the user-specified input data.
+#'   `file`.  This is the user-specified input data.  It may be `NULL`
+#'   (determine from the control stream), a path to a csv file, or a
+#'   `data.frame` of the already read-in NONMEM input dataset.
 #' @param rename rename parameters
 #' @param delta Delta offset for ties
 #' @param scanLines number of lines to scan before meeting the first data row (default 50)
@@ -16,39 +44,45 @@
 .readInDataFromNonmem <- function(file, inputData, rename=NULL, delta=1e-4,
                                   scanLines=50L) {
   .data <- NULL
-  if (is.null(inputData)) {
-    .file <- .getFileNameIgnoreCase(file.path(dirname(file), .nonmem2rx$dataFile))
+  .haveData <- FALSE
+  if (is.data.frame(inputData)) {
+    .minfo("using supplied data.frame for nonmem input data (for model validation)")
+    # A supplied data.frame is treated as the already-read input dataset and is
+    # run through the same $DATA IGNORE record filter as a file read.
+    .data <- .dropDataIgnore1Rows(as.data.frame(inputData))
+    .haveData <- TRUE
   } else {
-    .file <- inputData
-  }
-  .ext <- tools::file_ext(.file)
-  if (.ext == "csv" && file.exists(.file)) {
-    .minfo(paste0("read in nonmem input data (for model validation): ", .file))
-    if (!is.null(.nonmem2rx$dataIgnore1)) {
-      .lines <- readLines(.file,n=scanLines, encoding="latin1")
-      if (.nonmem2rx$dataIgnore1 == "@") {
-        .minfo("ignoring lines that begin with a letter (IGNORE=@)'")
-        .skip <- 0L
-        while (.skip != scanLines - 1L && grepl("^[A-Za-z]", .lines[.skip+1L])) {
-          .skip <- .skip+1L
-        }
-        .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE,
-                          skip=.skip)
-        .w <- which(regexpr("^[A-Za-z]", .data[,1]) != -1)
-        if (length(.w) > 0) .data <- .data[-.w, ]
-      } else {
-        .minfo(paste0("ignoring lines that begin with '", .nonmem2rx$dataIgnore1, "'"))
-        .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE,
-                          comment.char=.nonmem2rx$dataIgnore1)
-        .w <- which(.data[,1] == .nonmem2rx$dataIgnore1)
-        if (length(.w) > 0) .data <- .data[-.w, ]
-      }
+    if (is.null(inputData)) {
+      .file <- .getFileNameIgnoreCase(file.path(dirname(file), .nonmem2rx$dataFile))
     } else {
-      .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE)
-      .w <- which(regexpr("^[#]", .data[,1]) != -1)
-      if (length(.w) > 0) .data <- .data[-.w, ]
+      .file <- inputData
     }
-
+    .ext <- tools::file_ext(.file)
+    if (tolower(.ext) == "csv" && file.exists(.file)) {
+      .minfo(paste0("read in nonmem input data (for model validation): ", .file))
+      if (!is.null(.nonmem2rx$dataIgnore1)) {
+        .lines <- readLines(.file,n=scanLines, encoding="latin1")
+        if (.nonmem2rx$dataIgnore1 == "@") {
+          .minfo("ignoring lines that begin with a letter (IGNORE=@)")
+          .skip <- 0L
+          while (.skip != scanLines - 1L && grepl("^[A-Za-z]", .lines[.skip+1L])) {
+            .skip <- .skip+1L
+          }
+          .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE,
+                            skip=.skip)
+        } else {
+          .minfo(paste0("ignoring lines that begin with '", .nonmem2rx$dataIgnore1, "'"))
+          .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE,
+                            comment.char=.nonmem2rx$dataIgnore1)
+        }
+      } else {
+        .data <- read.csv(.file, row.names=NULL, na.strings=c("NA", "."), header=FALSE)
+      }
+      .data <- .dropDataIgnore1Rows(.data)
+      .haveData <- TRUE
+    }
+  }
+  if (.haveData) {
     .minfo("applying names specified by $INPUT")
     # need to apply input names
     # 1. Only work with columns specified in $input
@@ -56,33 +90,56 @@
     if (length(.data) < length(.inp)) {
       .inp <- .inp[seq_along(.data)]
     }
-    .data <- .data[,seq_along(.inp)]
-    # 2. drop values requested by nonmem
+    .data <- .data[,seq_along(.inp), drop=FALSE]
     names(.data) <- names(.inp)
-    .w <- which(.inp == "DROP")
-    if (length(.w) > 0) {
-      .inp <- .inp[-.w]
-      .data <- .data[, -.w]
-    }
-    # 3. add nonmem declared aliases into the dataset
-    .w <- which(names(.inp) != .inp)
+    # 2. add nonmem declared aliases into the dataset; DROP items are kept
+    # until after the IGNORE/ACCEPT filters since they may be used there
+    .w <- which(names(.inp) != .inp & .inp != "DROP" & names(.inp) != "DROP")
     if (length(.w) > 0) {
       .inpr <- .inp[.w]
       for (.i in names(.inpr)) {
         .data[, .inpr[.i]] <- .data[, .i]
       }
     }
+    # 3. RECORDS= selects records before the IGNORE/ACCEPT filters
+    .data <- .dataApplyRecords(.data)
     # https://www.mail-archive.com/nmusers@globomaxnm.com/msg05323.html
     if (length(.nonmem2rx$dataCond) > 0) {
-      .cond <- paste0("-which(",
-                     ifelse(.nonmem2rx$dataCondType == "accept", "!", ""), "(",
-                     paste(.nonmem2rx$dataCond, collapse=" | "),
-                     "))")
-      .minfo(paste0("subsetting accept/ignore filters code: .data[", .cond, ",]"))
-      .w <- eval(parse(text=.cond))
-      if (length(.w) > 0) {
-        .data <- .data[.w,]
+      .cond <- paste(.nonmem2rx$dataCond, collapse=" | ")
+      .minfo(paste0(ifelse(.nonmem2rx$dataCondType == "accept", "accept", "ignore"),
+                    " filter code: ", .cond))
+      # a condition that cannot be evaluated (missing value) is not met
+      .met <- eval(parse(text=.cond))
+      .met <- !is.na(.met) & .met
+      if (.nonmem2rx$dataCondType == "accept") {
+        .data <- .data[.met, , drop=FALSE]
+      } else {
+        .data <- .data[!.met, , drop=FALSE]
       }
+    }
+    # NULL=c replaces null data items ("." or empty); this is done after
+    # IGNORE/ACCEPT so the filters see the data as read
+    if (!is.null(.nonmem2rx$dataNull)) {
+      .minfo(paste0("replacing null data items with '", .nonmem2rx$dataNull, "' (NULL=)"))
+      for (.i in seq_along(.data)) {
+        .cur <- .data[[.i]]
+        .w <- is.na(.cur) | as.character(.cur) %in% c("", ".")
+        if (any(.w)) {
+          .cur <- as.character(.cur)
+          .cur[.w] <- .nonmem2rx$dataNull
+          .data[[.i]] <- .cur
+        }
+      }
+    }
+    # 4. day-time translation and TRANSLATE= (after the filters)
+    .data <- .dataTimeTranslate(.data)
+    # 5. drop values requested by nonmem
+    .w <- which(.inp == "DROP" | names(.inp) == "DROP")
+    if (length(.w) > 0) {
+      .data <- .data[, -.w, drop=FALSE]
+    }
+    if (!is.na(.nonmem2rx$dataRepl)) {
+      .minfo(sprintf("$DATA REPL=%d: the template data is not replicated", .nonmem2rx$dataRepl))
     }
     if (.nonmem2rx$needNmevid) {
       .minfo("adding nmevid to dataset")
@@ -106,10 +163,10 @@
       .wyt <- which(tolower(names(.data)) == "dvid")
       names(.data)[.wyt] <- "nmdvid"
     }
-    # I don't use, records=#, but my reading is this is a filter after the ignore/accept statements
-    if (!is.na(.nonmem2rx$dataRecords)) {
-      .minfo(sprintf("subsetting to %d records after filters", .nonmem2rx$dataRecords))
-      .data <- .data[seq_len(.nonmem2rx$dataRecords), ]
+    .wdur <- which(tolower(names(.data)) == "dur")
+    if (length(.wdur) > 0L) {
+      .minfo("renaming 'dur' to 'rxDur'")
+      names(.data)[.wdur] <- "rxDur"
     }
   }
   if (!is.null(rename) && !is.null(names(.data))) {
@@ -124,7 +181,9 @@
   # try to convert numeric whenever possible
   # In cases like #208, the data is read in as a character and
   # the final values are no longer numeric.
-  for (n in names(.data)) {
+  .n <- names(.data)
+  .n <- .n[!is.na(.n)]
+  for (n in .n) {
     .cur <- .data[[n]]
     if (is.numeric(.cur)) next
     .x <- suppressWarnings(as.numeric(.cur))
@@ -146,8 +205,46 @@
       .data[[n]] <- .x
     }
   }
+  if (length(.nonmem2rx$dataMisdat) > 0L) {
+    .minfo("MISDAT values are interpreted as 0")
+    for (n in .n) {
+      .cur <- .data[[n]]
+      if (!is.numeric(.cur)) next
+      .data[[n]][.cur %in% .nonmem2rx$dataMisdat] <- 0
+    }
+  }
   .fixNonmemTies(.data, delta)
 }
+#' Apply NONMEM $INPUT alias mappings to an sdtab data frame
+#'
+#' NONMEM writes sdtab columns using the original data column names,
+#' not the internal aliases declared in $INPUT. This function adds
+#' alias columns as copies of the original columns, mirroring what
+#' `.readInDataFromNonmem()` does for the input dataset — so both TAFD
+#' and TIME are present in the result.
+#'
+#' @param ret data frame returned by `nmtab()`
+#' @return data frame with alias columns added
+#' @noRd
+#' @author Matthew L. Fidler
+.applyNmInputAliasesToTable <- function(ret) {
+  .inp <- .nonmem2rx$input
+  .w <- which(names(.inp) != .inp)
+  if (length(.w) == 0L) return(ret)
+  .inpr <- .inp[.w]
+  for (.col in names(.inpr)) {
+    .alias <- .inpr[[.col]]
+    if (.alias == "DROP") next
+    .wc <- which(toupper(names(ret)) == toupper(.col))
+    .wa <- which(toupper(names(ret)) == toupper(.alias))
+    # Add alias column as copy of original; keep both (mirrors readInDataFromNonmem)
+    if (length(.wc) > 0L && length(.wa) == 0L) {
+      ret[, .alias] <- ret[, .wc[1L]]
+    }
+  }
+  ret
+}
+
 #' This reads in the nonmem output file that has the ipred data in it
 #'
 #' @param file nonmem control stream file name
@@ -179,6 +276,15 @@
   #.ret <- pmxTools::read_nm_multi_table(.file)
   .ret <- nmtab(.file)
   if (is.null(.ret)) return(NULL)
+  .ret <- .applyNmInputAliasesToTable(.ret)
+  .reqCols <- c("ID", "TIME")
+  .missing <- .reqCols[!toupper(.reqCols) %in% toupper(names(.ret))]
+  if (length(.missing) > 0L) {
+    stop(paste0("required column(s) ", paste(.missing, collapse=", "),
+                " not found in NONMEM table '", basename(.file),
+                "'; available columns: ", paste(names(.ret), collapse=", "),
+                "; check $INPUT aliases (e.g., TAFD=TIME) or $TABLE column list"))
+  }
   .w <- which(names(.ret) == "IPRE")
   if (length(.w) > 0) names(.ret)[.w] <- "IPRED"
   if (!is.null(rename) && !is.null(names(.ret))) {
@@ -237,6 +343,15 @@
   #.ret <- pmxTools::read_nm_multi_table(.file)
   .ret <- nmtab(.file)
   if (is.null(.ret)) return(NULL)
+  .ret <- .applyNmInputAliasesToTable(.ret)
+  .reqCols <- c("ID", "TIME")
+  .missing <- .reqCols[!toupper(.reqCols) %in% toupper(names(.ret))]
+  if (length(.missing) > 0L) {
+    stop(paste0("required column(s) ", paste(.missing, collapse=", "),
+                " not found in NONMEM table '", basename(.file),
+                "'; available columns: ", paste(names(.ret), collapse=", "),
+                "; check $INPUT aliases (e.g., TAFD=TIME) or $TABLE column list"))
+  }
   if (!is.null(rename) && !is.null(names(.ret))) {
     names(.ret) <- vapply(names(.ret),
                           function(x) {
