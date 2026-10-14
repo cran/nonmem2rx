@@ -1,7 +1,7 @@
 Package: nonmem2rx
 Type: Package
 Title: Converts 'NONMEM' Models to 'rxode2'
-Version: 0.1.11
+Version: 0.1.12
 Maintainer: Matthew Fidler <matthew.fidler@gmail.com>
 Authors@R: c(person("Matthew","Fidler", role = c("aut", "cre"), email = "matthew.fidler@gmail.com", comment=c(ORCID="0000-0001-8538-6691")),
     person("Philip", "Delff", email = "philip@delff.dk",role = c("ctb")),
@@ -28,23 +28,23 @@ License: GPL (>= 3)
 URL: https://nlmixr2.github.io/nonmem2rx/,
         https://github.com/nlmixr2/nonmem2rx/
 Encoding: UTF-8
+Depends: R (>= 4.1.0)
 LinkingTo: dparser, Rcpp, rxode2
-Imports: checkmate, digest, dparser, lotri, Rcpp, rxode2 (>= 5.1.5),
+Imports: checkmate, digest, dparser, lotri, Rcpp, rxode2 (>= 5.1.8),
         magrittr, cli, tools, utils, data.table, xml2, ggplot2,
         ggforce, crayon
 Suggests: ellmer, devtools, testthat (>= 3.0.0), nonmemica, NMdata,
         nonmem2R, withr, nlme, dplyr, xgxr, vdiffr, knitr, rmarkdown,
         spelling, nlmixr2est
 Config/testthat/edition: 3
-VignetteBuilder: knitr
+VignetteBuilder: knitr, rmarkdown
 Language: en-US
 Config/roxygen2/version: 8.1.0
 NeedsCompilation: yes
-Packaged: 2026-09-22 23:42:35 UTC; matt-fidler
+Packaged: 2026-10-14 01:51:26 UTC; matt-fidler
 Author: Matthew Fidler [aut, cre] (ORCID:
     <https://orcid.org/0000-0001-8538-6691>),
   Philip Delff [ctb],
   Gabriel Staples [ctb] (string insensitive compare)
-Depends: R (>= 3.5.0)
 Repository: CRAN
-Date/Publication: 2026-09-23 00:10:02 UTC
+Date/Publication: 2026-10-14 08:30:02 UTC

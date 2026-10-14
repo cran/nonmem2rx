@@ -1219,6 +1219,13 @@ void wprint_parsetree_abbrev(D_ParserTables pt, D_ParseNode *pn, int depth, prin
   if (abbrev_logic_operators(name) ||
       abbrev_operators(name)) {
     return;
+  } else if (!strcmp("logical_not_expression", name) && nch == 2) {
+    // .NOT. x -> !(x); the parentheses keep the NONMEM precedence
+    sAppendN(&curLine, "!(", 2);
+    D_ParseNode *xpn = d_get_child(pn, 1);
+    wprint_parsetree_abbrev(pt, xpn, depth, fn, client_data);
+    sAppendN(&curLine, ")", 1);
+    return;
   } else if (!strcmp("else", name)) {
     sAppendN(&curLine, "} else {", 7);
     pushModel();
@@ -1356,7 +1363,7 @@ void wprint_parsetree_abbrev(D_ParserTables pt, D_ParseNode *pn, int depth, prin
     cmtInfoStr = NULL;
   } else if (!strcmp("mtimeL", name)) {
     pushModel();
-    sAppend(&curLine,"rx.mpast.%d. <- ifelse(time >= rx.mtime.%d., 1, 0)", curMtime, curMtime);
+    sAppend(&curLine,"rx.mpast.%d. <- ifelse(time > rx.mtime.%d., 1, 0)", curMtime, curMtime);
     pushModel();
     if (hasMnow == 0) {
       sAppend(&curLine,"MNOW <- ifelse(time == rx.mtime.%d., %d, 0)", curMtime, curMtime);
